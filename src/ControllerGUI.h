@@ -50,6 +50,7 @@ private:
     TTF_Font* m_font = nullptr;
     std::string m_pendingMoveStart;
     std::string m_pendingEngineMove;
+    std::string m_lastHumanMove;
     bool m_engineMoveRequested = false;
     std::string m_rookTargetSquare = "";
     std::string m_lastEngineTarget = "";

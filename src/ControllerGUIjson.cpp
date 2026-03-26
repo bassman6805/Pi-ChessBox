@@ -194,8 +194,7 @@ void ControllerGUI::update(long ticks) {
                 nlohmann::json msg = nlohmann::json::parse(buffer);
                 std::string action = msg.value("action", "");
                 fprintf(stderr, "JSON ACTION: [%s]\n", action.c_str());
-                if (action.empty()) break;
-                if (action.empty()) break; // ignore unknown/empty actions
+                if (action.empty() || action == "pieceUp" || action == "pieceDown") break;
 
                 // Handle cbcontroller hardware format: {"action":"move","moves":[{"lan":"e2e4",...}]}
                 if (action == "move" && msg.contains("moves") && msg["moves"].is_array() && !msg["moves"].empty()) {
@@ -209,6 +208,7 @@ void ControllerGUI::update(long ticks) {
                         if (m_movesPanel) m_movesPanel->addMove(lan.c_str());
                         m_pendingMoveStart = "";
                         lockoutTimer = 800;
+                        m_lastHumanMove = lan;
                         fprintf(stderr, "HUMAN MOVE: %s sent, requesting engine move\n", lan.c_str());
                         if (!m_twoPlayer && isEngineToMove()) {
                             m_engineMoveRequested = true;
@@ -330,8 +330,7 @@ void ControllerGUI::update(long ticks) {
                                 m_uciClient->setPosition(m_board->getFen());
                                 try {
                                     simSend(nlohmann::json{{"action","move"},{"lan",fullMove}});
-                                    if (fullMove == "e1g1") simSend(nlohmann::json{{"action","move"},{"lan","h1f1"}});
-                                    else if (fullMove == "e1c1") simSend(nlohmann::json{{"action","move"},{"lan","a1d1"}});
+
                                 } catch (...) {}
                                 lockoutTimer = 800;
                                 fprintf(stderr, "HUMAN MOVE: %s sent\n", fullMove.c_str());
@@ -404,13 +403,7 @@ void ControllerGUI::update(long ticks) {
                             m_uciClient->setPosition(m_board->getFen());
                             try {
                                 simSend(nlohmann::json{{"action","move"},{"lan",fullMove}});
-                                auto sendCastleRook = [&](const std::string& move) {
-                                    if (move == "e1g1") simSend(nlohmann::json{{"action","move"},{"lan","h1f1"}});
-                                    else if (move == "e1c1") simSend(nlohmann::json{{"action","move"},{"lan","a1d1"}});
-                                    else if (move == "e8g8") simSend(nlohmann::json{{"action","move"},{"lan","h8f8"}});
-                                    else if (move == "e8c8") simSend(nlohmann::json{{"action","move"},{"lan","a8d8"}});
-                                };
-                                sendCastleRook(fullMove);
+
                                 if (m_board->isCheckmate()) {
                                     m_gameOver = true;
                                     std::string kSq = m_board->getKingSquare();
@@ -503,6 +496,8 @@ void ControllerGUI::update(long ticks) {
             m_board->setHighlight(moveStr.substr(0, 2).c_str(), true);
             m_board->setHighlight(moveStr.substr(2, 2).c_str(), true);
             fprintf(stderr, "ENGINE MOVE: %s applied, waiting for physical confirmation\n", moveStr.c_str());
+            bool lastWasCastle = (m_lastHumanMove=="e1g1"||m_lastHumanMove=="e1c1"||m_lastHumanMove=="e8g8"||m_lastHumanMove=="e8c8");
+            m_lastHumanMove = "";
             // Update cbcontroller board position so LEDs work for black moves
             try {
                 nlohmann::json jpos;
@@ -540,12 +535,9 @@ void ControllerGUI::update(long ticks) {
                         m["lan"]  = moveStr;
                         m["type"] = "move";
                         mv["moves"] = nlohmann::json::array({m});
+                        if (lastWasCastle) SDL_Delay(2000); // wait for rook LED before showing engine move
                         simSend(mv);
                     }
-                    if (moveStr == "e8g8") simSend(nlohmann::json{{"action","move"},{"lan","h8f8"}});
-                    else if (moveStr == "e8c8") simSend(nlohmann::json{{"action","move"},{"lan","a8d8"}});
-                    else if (moveStr == "e1g1") simSend(nlohmann::json{{"action","move"},{"lan","h1f1"}});
-                    else if (moveStr == "e1c1") simSend(nlohmann::json{{"action","move"},{"lan","a1d1"}});
                 } catch (...) {}
                 lockoutTimer = m_humanIsBlack ? 0 : 800;
             }
@@ -770,10 +762,6 @@ void ControllerGUI::studyStep(int delta) {
             if (m_studyIndex > 0 && m_studyIndex - 1 < (int)m_studyLanMoves.size()) {
                 const std::string& lan = m_studyLanMoves[m_studyIndex - 1];
                 simSend(nlohmann::json{{"action","move"},{"lan",lan}});
-                if (lan == "e1g1") simSend(nlohmann::json{{"action","move"},{"lan","h1f1"}});
-                else if (lan == "e1c1") simSend(nlohmann::json{{"action","move"},{"lan","a1d1"}});
-                else if (lan == "e8g8") simSend(nlohmann::json{{"action","move"},{"lan","h8f8"}});
-                else if (lan == "e8c8") simSend(nlohmann::json{{"action","move"},{"lan","a8d8"}});
                 // Highlight last move squares
                 simSend(nlohmann::json{{"action","highlight"},{"color","green"},
                     {"squares",nlohmann::json::array({lan.substr(0,2), lan.substr(2,2)})}
