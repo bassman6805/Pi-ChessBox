@@ -65,8 +65,9 @@ void Connector::close() {
  */
 int Connector::send(const char* s) {
     string buf=s;
-    buf+="\r\n"; // Your current code adds this automatically
-    return m_sock.send(buf.c_str(),buf.length());
+    if (buf.empty() || buf.back() != '\n') buf+="\r\n"; else { buf.pop_back(); buf+="\r\n"; }
+    fprintf(stderr, "RAW SEND %zu bytes: %s", buf.length(), buf.c_str());
+    return m_sock.write(buf.c_str(),buf.length());
 }
 
 int Connector::waitline(char* dest,size_t size) {

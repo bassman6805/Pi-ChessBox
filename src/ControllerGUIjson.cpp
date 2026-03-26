@@ -186,13 +186,16 @@ void ControllerGUI::update(long ticks) {
     // --- MESSAGE PROCESSING ---
     if (m_connector && m_connector->isConnected()) {
         char buffer[1024];
-        int _rln = m_connector->readline(buffer, sizeof(buffer));
+        int _rln = 0;
+        try { _rln = m_connector->readline(buffer, sizeof(buffer)); } catch (...) { m_connector->close(); _rln = 0; }
         if (_rln > 0) fprintf(stderr, "READLINE: [%s]\n", buffer);
         while (_rln > 0) {
             try {
                 nlohmann::json msg = nlohmann::json::parse(buffer);
                 std::string action = msg.value("action", "");
                 fprintf(stderr, "JSON ACTION: [%s]\n", action.c_str());
+                if (action.empty()) break;
+                if (action.empty()) break; // ignore unknown/empty actions
 
                 // Handle cbcontroller hardware format: {"action":"move","moves":[{"lan":"e2e4",...}]}
                 if (action == "move" && msg.contains("moves") && msg["moves"].is_array() && !msg["moves"].empty()) {
@@ -490,7 +493,8 @@ void ControllerGUI::update(long ticks) {
             m_engineMoveRequested = false;
             m_pendingEngineMove = moveStr;
             // Save FEN before engine move for undo
-            m_fenHistory.push_back(std::string(m_board->getFen()));
+            std::string preMovefen = std::string(m_board->getFen());
+            m_fenHistory.push_back(preMovefen);
             m_board->playMove(moveStr.c_str());
             if (m_movesPanel) m_movesPanel->addMove(moveStr.c_str());
             m_uciClient->setPosition(m_board->getFen());
@@ -499,6 +503,15 @@ void ControllerGUI::update(long ticks) {
             m_board->setHighlight(moveStr.substr(0, 2).c_str(), true);
             m_board->setHighlight(moveStr.substr(2, 2).c_str(), true);
             fprintf(stderr, "ENGINE MOVE: %s applied, waiting for physical confirmation\n", moveStr.c_str());
+            // Update cbcontroller board position so LEDs work for black moves
+            try {
+                nlohmann::json jpos;
+                jpos["action"] = "setposition";
+                jpos["fen"] = preMovefen;
+                std::string sp = jpos.dump() + "\r\n";
+                m_connector->send(sp.c_str());
+                fprintf(stderr, "SETPOSITION sent: %s\n", preMovefen.c_str());
+            } catch (...) { fprintf(stderr, "SETPOSITION send failed\n"); }
             if (m_connector && m_connector->isConnected()) {
                 try {
                     if (m_board->isCheckmate()) {
@@ -517,7 +530,18 @@ void ControllerGUI::update(long ticks) {
                     } else {
                         simSend(nlohmann::json{{"action","flash"},{"on",false},{"squares",nlohmann::json::array()}});
                     }
-                    simSend(nlohmann::json{{"action","move"},{"lan",moveStr},{"engine",true}});
+                    {
+                        nlohmann::json mv;
+                        mv["action"] = "move";
+                        mv["description"] = nullptr;
+                        nlohmann::json m;
+                        m["from"] = moveStr.substr(0,2);
+                        m["to"]   = moveStr.substr(2,2);
+                        m["lan"]  = moveStr;
+                        m["type"] = "move";
+                        mv["moves"] = nlohmann::json::array({m});
+                        simSend(mv);
+                    }
                     if (moveStr == "e8g8") simSend(nlohmann::json{{"action","move"},{"lan","h8f8"}});
                     else if (moveStr == "e8c8") simSend(nlohmann::json{{"action","move"},{"lan","a8d8"}});
                     else if (moveStr == "e1g1") simSend(nlohmann::json{{"action","move"},{"lan","h1f1"}});
@@ -546,14 +570,8 @@ std::string ControllerGUI::simLan(const std::string& lan) const {
 }
 
 void ControllerGUI::simSend(const nlohmann::json& j) const {
-#ifdef _WIN32
-    // On Windows, send to the sim
     if (!m_connector || !m_connector->isConnected()) return;
-    m_connector->send((j.dump() + "\n").c_str());
-#else
-    // On Pi/Linux, cbcontroller doesn't accept commands - skip
-    (void)j;
-#endif
+    try { std::string s = j.dump() + "\n"; m_connector->send(s.c_str()); fprintf(stderr, "SIMSEND: %s", s.c_str()); } catch (...) {}
 }
 
 void ControllerGUI::newGame() {
@@ -844,7 +862,11 @@ void ControllerGUI::processButtonClicked(Button* b) {
     if (b->id() == "B_P")  { m_humanIsBlack = true;  m_twoPlayer = false; newGame(); return; }
     if (b->id() == "WB_P") { m_humanIsBlack = false; m_twoPlayer = true;  newGame(); return; }
     if (b->id() == "BB_P") { m_humanIsBlack = true;  m_twoPlayer = true;  newGame(); return; }
-    if (b->id() == "Connect") m_connector->connect(m_host.c_str(), m_port);
+    if (b->id() == "Connect") {
+        m_connector->connect(m_host.c_str(), m_port);
+        // Tell cbcontroller to enter play mode so LEDs work
+        try { m_connector->send("{\"action\":\"setmode\",\"mode\":\"play\"}\n"); } catch (...) {}
+    }
     if (b->id() == "Load")   { loadPGN(); return; }
     if (b->id() == "Export") exportPGN();
     if (b->id() == "<")  { studyStep(-1); return; }
