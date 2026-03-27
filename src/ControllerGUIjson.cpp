@@ -587,7 +587,12 @@ void ControllerGUI::newGame() {
     m_uciClient->setPosition(m_board->getFen());
     if (m_connector && m_connector->isConnected()) {
         try {
-            // disabled for hardware: reset/flip sends
+            // Send setposition to cbcontroller so it resets board and lights LEDs for setup
+            nlohmann::json jpos;
+            jpos["action"] = "setposition";
+            jpos["fen"] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+            std::string sp = jpos.dump() + "\r\n";
+            m_connector->send(sp.c_str());
         } catch (...) {}
     }
     if (m_humanIsBlack) {
