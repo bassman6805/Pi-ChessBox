@@ -52,6 +52,8 @@ private:
     std::string m_pendingEngineMove;
     std::string m_lastHumanMove;
     std::string m_pendingHintMove;
+    std::string m_undoTargetFen;
+    std::string m_undoCurrentFen;
     bool m_engineMoveRequested = false;
     std::string m_rookTargetSquare = "";
     std::string m_lastEngineTarget = "";

@@ -228,6 +228,9 @@ public:
                 } else if(!action.compare("hint")) {
                     setHint(j, jresult);
                     psocket->println(jresult.dump().c_str());
+                } else if(!action.compare("takeback")) {
+                    setTakeback(j, jresult);
+                    psocket->println(jresult.dump().c_str());
                 }
             }
 
@@ -264,6 +267,36 @@ public:
             string to = j["to"];
             led(toIndex(to.c_str()), LED_ON);
         }
+    }
+
+    void setTakeback(json& j, json& jresult) {
+        printf("TAKEBACK called\n");
+        jresult["success"] = true;
+        if (!j.contains("from") || !j.contains("to")) {
+            jresult["success"] = false;
+            return;
+        }
+        string from = j["from"];
+        string to = j["to"];
+        printf("TAKEBACK: from=%s to=%s\n", from.c_str(), to.c_str());
+        int fromIdx = toIndex(from.c_str());
+        int toIdx = toIndex(to.c_str());
+        printf("TAKEBACK: fromIdx=%d toIdx=%d\n", fromIdx, toIdx);
+        clearLeds();
+        led(fromIdx, LED_ON);
+        led(toIdx, LED_ON);
+        printf("TAKEBACK: LEDs set, setting MODE_MOVE\n");
+        waitMove.setFrom(fromIdx);
+        waitMove.setTo(toIdx);
+        waitMove.setType("move");
+        moveType[0] = MOVE_UP;
+        moveType[1] = MOVE_DOWN;
+        moveSquareIndex[0] = fromIdx;
+        moveSquareIndex[1] = toIdx;
+        movesNeeded = 2;
+        moveIndex = 0;
+        gameMode = MODE_MOVE;
+        printf("TAKEBACK: done\n");
     }
 
     void setPosition(const char* fen) {
@@ -714,9 +747,9 @@ public:
                     if(moveIndex == movesNeeded) {
                         //got all the moves we were waiting for
                         gameMode = MODE_PLAY;
-                        printf("Move finished json=\n",waitMove.tojson().dump().c_str());
-//                        send2All(waitMove.tojson().dump().c_str());
-//                        send2All("\n");
+                        printf("Move finished json=%s\n",waitMove.tojson().dump().c_str());
+                        send2All(waitMove.tojson().dump().c_str());
+                        send2All("\n");
                         finishMove(moveSquareIndex[moveIndex-1],false);
                     }
                 } else {

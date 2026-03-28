@@ -194,18 +194,165 @@ void ControllerGUI::update(long ticks) {
                 nlohmann::json msg = nlohmann::json::parse(buffer);
                 std::string action = msg.value("action", "");
                 fprintf(stderr, "JSON ACTION: [%s]\n", action.c_str());
+                // Handle takeback completion format before early break
+                if (action.empty() && msg.contains("from") && msg.contains("to") && msg.value("type","") == "move" && m_undoConfirm.active) {
+                    std::string from = msg.value("from", "");
+                    std::string to   = msg.value("to", "");
+                    for(auto& ch : from) ch = tolower(ch);
+                    for(auto& ch : to)   ch = tolower(ch);
+                    std::string lan = from + to;
+                    fprintf(stderr, "TAKEBACK RESPONSE: lan=%s\n", lan.c_str());
+                    if (!m_undoConfirm.move1Done && lan == m_undoConfirm.move1From + m_undoConfirm.move1To) {
+                        m_undoConfirm.move1Done = true;
+                        m_board->clearHighlights();
+                        if (!m_undoConfirm.move2Done) {
+                            m_board->setHighlight(m_undoConfirm.move2From.c_str(), true);
+                            m_board->setHighlight(m_undoConfirm.move2To.c_str(), true);
+                            nlohmann::json hint; hint["action"]="takeback"; hint["from"]=m_undoConfirm.move2From; hint["to"]=m_undoConfirm.move2To; simSend(hint);
+                            fprintf(stderr, "UNDO: now takeback black %s->%s\n", m_undoConfirm.move2From.c_str(), m_undoConfirm.move2To.c_str());
+                        } else {
+                            m_undoConfirm.active = false;
+                            if (m_connector && m_connector->isConnected()) { try { nlohmann::json jp; jp["action"]="setposition"; jp["fen"]=m_undoTargetFen; m_connector->send((jp.dump()+"\r\n").c_str()); } catch(...){} }
+                            fprintf(stderr, "UNDO: complete\n");
+                        }
+                    } else if (!m_undoConfirm.move2Done && lan == m_undoConfirm.move2From + m_undoConfirm.move2To) {
+                        m_undoConfirm.move2Done = true;
+                        m_board->clearHighlights();
+                        if (!m_undoConfirm.move1Done) {
+                            m_board->setHighlight(m_undoConfirm.move1From.c_str(), true);
+                            m_board->setHighlight(m_undoConfirm.move1To.c_str(), true);
+                            nlohmann::json hint; hint["action"]="takeback"; hint["from"]=m_undoConfirm.move1From; hint["to"]=m_undoConfirm.move1To; simSend(hint);
+                            fprintf(stderr, "UNDO: now takeback white %s->%s\n", m_undoConfirm.move1From.c_str(), m_undoConfirm.move1To.c_str());
+                        } else {
+                            m_undoConfirm.active = false;
+                            if (m_connector && m_connector->isConnected()) { try { nlohmann::json jp; jp["action"]="setposition"; jp["fen"]=m_undoTargetFen; m_connector->send((jp.dump()+"\r\n").c_str()); } catch(...){} }
+                            fprintf(stderr, "UNDO: complete\n");
+                        }
+                    }
+                    break;
+                }
                 if (action.empty() || action == "pieceUp" || action == "pieceDown") break;
 
+                // Handle takeback completion format: {"from":"E5","to":"E4","type":"move"} (no action field)
+                if (action.empty() && msg.contains("from") && msg.contains("to") && msg.value("type","") == "move") {
+                    std::string from = msg.value("from", "");
+                    std::string to   = msg.value("to", "");
+                    // Convert to lowercase
+                    for(auto& ch : from) ch = tolower(ch);
+                    for(auto& ch : to)   ch = tolower(ch);
+                    std::string lan = from + to;
+                    fprintf(stderr, "TAKEBACK RESPONSE: lan=%s\n", lan.c_str());
+                    if (m_undoConfirm.active) {
+                        fprintf(stderr, "UNDO CHECK takeback: lan=%s move1=%s%s move2=%s%s\n", lan.c_str(), m_undoConfirm.move1From.c_str(), m_undoConfirm.move1To.c_str(), m_undoConfirm.move2From.c_str(), m_undoConfirm.move2To.c_str());
+                        if (!m_undoConfirm.move1Done && lan == m_undoConfirm.move1From + m_undoConfirm.move1To) {
+                            m_undoConfirm.move1Done = true;
+                            fprintf(stderr, "UNDO: white piece moved back %s\n", lan.c_str());
+                            m_board->clearHighlights();
+                            if (!m_undoConfirm.move2Done) {
+                                m_board->setHighlight(m_undoConfirm.move2From.c_str(), true);
+                                m_board->setHighlight(m_undoConfirm.move2To.c_str(), true);
+                                nlohmann::json hint;
+                                hint["action"] = "takeback";
+                                hint["from"] = m_undoConfirm.move2From;
+                                hint["to"] = m_undoConfirm.move2To;
+                                simSend(hint);
+                                fprintf(stderr, "UNDO: now takeback black %s->%s\n", m_undoConfirm.move2From.c_str(), m_undoConfirm.move2To.c_str());
+                            } else {
+                                m_undoConfirm.active = false;
+                                if (m_connector && m_connector->isConnected()) {
+                                    try { nlohmann::json jp; jp["action"]="setposition"; jp["fen"]=m_undoTargetFen; m_connector->send((jp.dump()+"\r\n").c_str()); } catch(...){}
+                                }
+                                fprintf(stderr, "UNDO: complete\n");
+                            }
+                        } else if (!m_undoConfirm.move2Done && lan == m_undoConfirm.move2From + m_undoConfirm.move2To) {
+                            m_undoConfirm.move2Done = true;
+                            fprintf(stderr, "UNDO: black piece moved back %s\n", lan.c_str());
+                            m_board->clearHighlights();
+                            if (!m_undoConfirm.move1Done) {
+                                m_board->setHighlight(m_undoConfirm.move1From.c_str(), true);
+                                m_board->setHighlight(m_undoConfirm.move1To.c_str(), true);
+                                nlohmann::json hint;
+                                hint["action"] = "takeback";
+                                hint["from"] = m_undoConfirm.move1From;
+                                hint["to"] = m_undoConfirm.move1To;
+                                simSend(hint);
+                                fprintf(stderr, "UNDO: now takeback white %s->%s\n", m_undoConfirm.move1From.c_str(), m_undoConfirm.move1To.c_str());
+                            } else {
+                                m_undoConfirm.active = false;
+                                if (m_connector && m_connector->isConnected()) {
+                                    try { nlohmann::json jp; jp["action"]="setposition"; jp["fen"]=m_undoTargetFen; m_connector->send((jp.dump()+"\r\n").c_str()); } catch(...){}
+                                }
+                                fprintf(stderr, "UNDO: complete\n");
+                            }
+                        }
+                    }
+                    break;
+                }
                 // Handle cbcontroller hardware format: {"action":"move","moves":[{"lan":"e2e4",...}]}
                 if (action == "move" && msg.contains("moves") && msg["moves"].is_array() && !msg["moves"].empty()) {
                     std::string lan  = msg["moves"][0].value("lan", "");
                     std::string from = msg["moves"][0].value("from", "");
                     fprintf(stderr, "HW MOVE CHECK: lan=%s engineToMove=%d lockout=%ld\n", lan.c_str(), isEngineToMove()?1:0, lockoutTimer);
+                    // Check if this is physical confirmation of engine move
+                    fprintf(stderr, "HW MOVE pending=[%s] lan=[%s] match=%d\n", m_pendingEngineMove.c_str(), lan.c_str(), (lan==m_pendingEngineMove)?1:0);
+                    if (!lan.empty() && !m_pendingEngineMove.empty() && lan == m_pendingEngineMove) {
+                        fprintf(stderr, "ENGINE MOVE CONFIRMED physically via HW move: %s\n", lan.c_str());
+                        m_pendingEngineMove = "";
+                        m_board->clearHighlights();
+                        lockoutTimer = 0;
+                        break;
+                    }
+                    // Handle undo confirmation via HW move
+                    if (m_undoConfirm.active && !lan.empty()) {
+                        fprintf(stderr, "UNDO CHECK: lan=%s move1=%s%s move2=%s%s done1=%d done2=%d\n", lan.c_str(), m_undoConfirm.move1From.c_str(), m_undoConfirm.move1To.c_str(), m_undoConfirm.move2From.c_str(), m_undoConfirm.move2To.c_str(), m_undoConfirm.move1Done?1:0, m_undoConfirm.move2Done?1:0);
+                        if (!m_undoConfirm.move1Done && lan == m_undoConfirm.move1From + m_undoConfirm.move1To) {
+                            m_undoConfirm.move1Done = true;
+                            fprintf(stderr, "UNDO: white piece moved back %s\n", lan.c_str());
+                            m_board->clearHighlights();
+                            if (!m_undoConfirm.move2Done) {
+                                m_board->setHighlight(m_undoConfirm.move2From.c_str(), true);
+                                m_board->setHighlight(m_undoConfirm.move2To.c_str(), true);
+                                nlohmann::json hint;
+                                hint["action"] = "takeback";
+                                hint["from"] = m_undoConfirm.move2From;
+                                hint["to"] = m_undoConfirm.move2To;
+                                simSend(hint);
+                                fprintf(stderr, "UNDO: now hint black %s->%s\n", m_undoConfirm.move2From.c_str(), m_undoConfirm.move2To.c_str());
+                            } else {
+                                m_undoConfirm.active = false;
+                                if (m_connector && m_connector->isConnected()) {
+                                    try { nlohmann::json jp; jp["action"]="setposition"; jp["fen"]=m_undoTargetFen; m_connector->send((jp.dump()+"\r\n").c_str()); } catch(...){}
+                                }
+                                fprintf(stderr, "UNDO: complete\n");
+                            }
+                        } else if (!m_undoConfirm.move2Done && lan == m_undoConfirm.move2From + m_undoConfirm.move2To) {
+                            m_undoConfirm.move2Done = true;
+                            fprintf(stderr, "UNDO: black piece moved back %s\n", lan.c_str());
+                            m_board->clearHighlights();
+                            if (!m_undoConfirm.move1Done) {
+                                m_board->setHighlight(m_undoConfirm.move1From.c_str(), true);
+                                m_board->setHighlight(m_undoConfirm.move1To.c_str(), true);
+                                nlohmann::json hint;
+                                hint["action"] = "takeback";
+                                hint["from"] = m_undoConfirm.move1From;
+                                hint["to"] = m_undoConfirm.move1To;
+                                simSend(hint);
+                                fprintf(stderr, "UNDO: now hint white %s->%s\n", m_undoConfirm.move1From.c_str(), m_undoConfirm.move1To.c_str());
+                            } else {
+                                m_undoConfirm.active = false;
+                                if (m_connector && m_connector->isConnected()) {
+                                    try { nlohmann::json jp; jp["action"]="setposition"; jp["fen"]=m_undoTargetFen; m_connector->send((jp.dump()+"\r\n").c_str()); } catch(...){}
+                                }
+                                fprintf(stderr, "UNDO: complete\n");
+                            }
+                        }
+                        break;
+                    }
                     if (!lan.empty() && !isEngineToMove() && lockoutTimer == 0 && m_board) {
                         fprintf(stderr, "HW MOVE: lan=%s\n", lan.c_str());
                         m_pendingHintMove = "";
+                        m_fenHistory.push_back(std::string(m_board->getFen())); // save pre-move FEN
                         m_board->playMove(lan.c_str());
-                        m_fenHistory.push_back(std::string(m_board->getFen()));
                         if (m_movesPanel) m_movesPanel->addMove(lan.c_str());
                         m_pendingMoveStart = "";
                         lockoutTimer = 800;
@@ -232,22 +379,30 @@ void ControllerGUI::update(long ticks) {
                     // During undo mode
                     if (m_undoConfirm.active) {
                         if (!m_undoConfirm.move1Done && lan == m_undoConfirm.move1From) {
-                            // White piece lifted — flash destination (where to put it)
+                            // White piece lifted — show destination
                             m_board->clearHighlights();
                             m_board->setHighlight(m_undoConfirm.move1To.c_str(), true);
-                            try { simSend(nlohmann::json{{"action","flash"},{"on",true},
-                                {"squares",nlohmann::json::array({m_undoConfirm.move1To})}
-                            }); } catch (...) {}
+                            try {
+                                nlohmann::json hint;
+                                hint["action"] = "takeback";
+                                hint["from"] = lan;
+                                hint["to"] = m_undoConfirm.move1To;
+                                simSend(hint);
+                            } catch (...) {}
                             m_pendingMoveStart = lan;
                             fprintf(stderr, "UNDO: white piece lifted from %s, flash dest %s\n",
                                 lan.c_str(), m_undoConfirm.move1To.c_str());
                         } else if (!m_undoConfirm.move2Done && lan == m_undoConfirm.move2From) {
-                            // Black piece lifted — flash destination
+                            // Black piece lifted — show destination
                             m_board->clearHighlights();
                             m_board->setHighlight(m_undoConfirm.move2To.c_str(), true);
-                            try { simSend(nlohmann::json{{"action","flash"},{"on",true},
-                                {"squares",nlohmann::json::array({m_undoConfirm.move2To})}
-                            }); } catch (...) {}
+                            try {
+                                nlohmann::json hint;
+                                hint["action"] = "takeback";
+                                hint["from"] = lan;
+                                hint["to"] = m_undoConfirm.move2To;
+                                simSend(hint);
+                            } catch (...) {}
                             m_pendingMoveStart = lan;
                             fprintf(stderr, "UNDO: black piece lifted from %s, flash dest %s\n",
                                 lan.c_str(), m_undoConfirm.move2To.c_str());
@@ -360,15 +515,28 @@ void ControllerGUI::update(long ticks) {
                                     }); } catch (...) {}
                                     m_board->clearHighlights();
                                     if (!m_undoConfirm.move2Done) {
-                                        // Flash black piece's current square next
+                                        // Show black piece hint
                                         m_board->setHighlight(m_undoConfirm.move2From.c_str(), true);
-                                        try { simSend(nlohmann::json{{"action","flash"},{"on",true},
-                                            {"squares",nlohmann::json::array({m_undoConfirm.move2From})}
-                                        }); } catch (...) {}
-                                        fprintf(stderr, "UNDO: now flash black piece at %s\n", m_undoConfirm.move2From.c_str());
+                                        m_board->setHighlight(m_undoConfirm.move2To.c_str(), true);
+                                        try {
+                                            nlohmann::json hint;
+                                            hint["action"] = "takeback";
+                                            hint["from"] = m_undoConfirm.move2From;
+                                            hint["to"] = m_undoConfirm.move2To;
+                                            simSend(hint);
+                                        } catch (...) {}
+                                        fprintf(stderr, "UNDO: now hint black piece at %s->%s\n", m_undoConfirm.move2From.c_str(), m_undoConfirm.move2To.c_str());
                                     } else {
                                         m_undoConfirm.active = false;
-                                        try { simSend(nlohmann::json{{"action","flash"},{"on",false},{"squares",nlohmann::json::array()}}); } catch (...) {}
+                                        // Reset cbcontroller board
+                                        if (m_connector && m_connector->isConnected()) {
+                                            try {
+                                                nlohmann::json jpos;
+                                                jpos["action"] = "setposition";
+                                                jpos["fen"] = m_undoTargetFen;
+                                                m_connector->send((jpos.dump() + "\r\n").c_str());
+                                            } catch (...) {}
+                                        }
                                         fprintf(stderr, "UNDO: complete\n");
                                     }
                                 } else if (!m_undoConfirm.move2Done && lan == m_undoConfirm.move2To) {
@@ -379,15 +547,28 @@ void ControllerGUI::update(long ticks) {
                                     }); } catch (...) {}
                                     m_board->clearHighlights();
                                     if (!m_undoConfirm.move1Done) {
-                                        // Flash white piece's current square next
+                                        // Show white piece hint
                                         m_board->setHighlight(m_undoConfirm.move1From.c_str(), true);
-                                        try { simSend(nlohmann::json{{"action","flash"},{"on",true},
-                                            {"squares",nlohmann::json::array({m_undoConfirm.move1From})}
-                                        }); } catch (...) {}
-                                        fprintf(stderr, "UNDO: now flash white piece at %s\n", m_undoConfirm.move1From.c_str());
+                                        m_board->setHighlight(m_undoConfirm.move1To.c_str(), true);
+                                        try {
+                                            nlohmann::json hint;
+                                            hint["action"] = "takeback";
+                                            hint["from"] = m_undoConfirm.move1From;
+                                            hint["to"] = m_undoConfirm.move1To;
+                                            simSend(hint);
+                                        } catch (...) {}
+                                        fprintf(stderr, "UNDO: now hint white piece at %s->%s\n", m_undoConfirm.move1From.c_str(), m_undoConfirm.move1To.c_str());
                                     } else {
                                         m_undoConfirm.active = false;
-                                        try { simSend(nlohmann::json{{"action","flash"},{"on",false},{"squares",nlohmann::json::array()}}); } catch (...) {}
+                                        // Reset cbcontroller board
+                                        if (m_connector && m_connector->isConnected()) {
+                                            try {
+                                                nlohmann::json jpos;
+                                                jpos["action"] = "setposition";
+                                                jpos["fen"] = m_undoTargetFen;
+                                                m_connector->send((jpos.dump() + "\r\n").c_str());
+                                            } catch (...) {}
+                                        }
                                         fprintf(stderr, "UNDO: complete\n");
                                     }
                                 }
@@ -484,7 +665,7 @@ void ControllerGUI::update(long ticks) {
                 try {
                     nlohmann::json jpos;
                     jpos["action"] = "setposition";
-                    jpos["fen"] = std::string(m_board->getFen());
+                    jpos["fen"] = m_undoTargetFen;
                     std::string sp = jpos.dump() + "\r\n";
                     m_connector->send(sp.c_str());
                     // Send hint action to cbcontroller to light LEDs without advancing board
@@ -635,10 +816,9 @@ void ControllerGUI::undoLastTwoMoves() {
         fprintf(stderr, "UNDO: already in undo mode\n");
         return;
     }
-    if (m_pendingEngineMove.empty() == false) {
-        fprintf(stderr, "UNDO: engine move pending, wait for confirmation\n");
-        return;
-    }
+    // Clear any pending engine move - undo overrides it
+    m_pendingEngineMove = "";
+    m_engineMoveRequested = false;
 
     // Get the last two moves
     std::string blackMove = moves[moves.size() - 1];
@@ -647,10 +827,14 @@ void ControllerGUI::undoLastTwoMoves() {
     fprintf(stderr, "UNDO: undoing white=%s black=%s\n", whiteMove.c_str(), blackMove.c_str());
 
     // Restore board state
+    std::string currentPhysicalFen = std::string(m_board->getFen()); // save BEFORE restoring
     std::string targetFen = m_fenHistory[m_fenHistory.size() - 2];
     m_board->Forsyth(targetFen.c_str());
     m_uciClient->setPosition(m_board->getFen());
     m_fenHistory.resize(m_fenHistory.size() - 2);
+    // Store target FEN for final setposition to cbcontroller
+    m_undoTargetFen = targetFen;
+    m_undoCurrentFen = currentPhysicalFen;
     m_movesPanel->removeLastTwo();
     m_board->clearHighlights();
 
@@ -670,12 +854,25 @@ void ControllerGUI::undoLastTwoMoves() {
     m_pendingMoveStart = "";
     m_hintMode = false;
 
-    // Flash white piece's current square — pick this up first
+    // Send CURRENT FEN to cbcontroller so it knows where pieces are before undo
+    if (m_connector && m_connector->isConnected()) {
+        try {
+            // Use the FEN that was current before undo started (2 moves ahead of target)
+            nlohmann::json jp;
+            jp["action"] = "setposition";
+            jp["fen"] = m_undoCurrentFen;
+            m_connector->send((jp.dump() + "\r\n").c_str());
+        } catch (...) {}
+    }
+    // Light white piece square and destination so player knows what to move
     m_board->setHighlight(m_undoConfirm.move1From.c_str(), true);
+    m_board->setHighlight(m_undoConfirm.move1To.c_str(), true);
     try {
-        simSend(nlohmann::json{{"action","flash"},{"on",true},
-            {"squares",nlohmann::json::array({m_undoConfirm.move1From})}
-        });
+        nlohmann::json hint;
+        hint["action"] = "takeback";
+        hint["from"] = m_undoConfirm.move1From;
+        hint["to"] = m_undoConfirm.move1To;
+        simSend(hint);
     } catch (...) {}
 
     fprintf(stderr, "UNDO: flash %s (white piece), then %s (destination)\n",
