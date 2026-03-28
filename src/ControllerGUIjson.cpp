@@ -665,7 +665,7 @@ void ControllerGUI::update(long ticks) {
                 try {
                     nlohmann::json jpos;
                     jpos["action"] = "setposition";
-                    jpos["fen"] = m_undoTargetFen;
+                    jpos["fen"] = std::string(m_board->getFen());
                     std::string sp = jpos.dump() + "\r\n";
                     m_connector->send(sp.c_str());
                     // Send hint action to cbcontroller to light LEDs without advancing board
