@@ -203,6 +203,7 @@ void ControllerGUI::update(long ticks) {
                     fprintf(stderr, "HW MOVE CHECK: lan=%s engineToMove=%d lockout=%ld\n", lan.c_str(), isEngineToMove()?1:0, lockoutTimer);
                     if (!lan.empty() && !isEngineToMove() && lockoutTimer == 0 && m_board) {
                         fprintf(stderr, "HW MOVE: lan=%s\n", lan.c_str());
+                        m_pendingHintMove = "";
                         m_board->playMove(lan.c_str());
                         m_fenHistory.push_back(std::string(m_board->getFen()));
                         if (m_movesPanel) m_movesPanel->addMove(lan.c_str());
@@ -467,14 +468,33 @@ void ControllerGUI::update(long ticks) {
         std::string hintStr = m_uciClient->getAndClearMove();
         m_hintMode = false;
         m_hintJustFired = true;
+        m_pendingHintMove = hintStr;
         fprintf(stderr, "HINT move: %s\n", hintStr.c_str());
-        if (hintStr.size() >= 4 && m_connector && m_connector->isConnected()) {
+        if (hintStr.size() >= 4) {
             std::string fromSq = hintStr.substr(0, 2);
             std::string toSq   = hintStr.substr(2, 2);
-            try {
-                simSend(nlohmann::json{{"action","flash"},{"on",true},
-                    {"squares",nlohmann::json::array({fromSq, toSq})}});
-            } catch (...) {}
+            // Highlight hint squares on GUI board
+            if (m_board) {
+                m_board->clearHighlights();
+                m_board->setHighlight(fromSq.c_str(), true);
+                m_board->setHighlight(toSq.c_str(), true);
+            }
+            // Send move to cbcontroller to light LEDs
+            if (m_connector && m_connector->isConnected()) {
+                try {
+                    nlohmann::json jpos;
+                    jpos["action"] = "setposition";
+                    jpos["fen"] = std::string(m_board->getFen());
+                    std::string sp = jpos.dump() + "\r\n";
+                    m_connector->send(sp.c_str());
+                    // Send hint action to cbcontroller to light LEDs without advancing board
+                    nlohmann::json hint;
+                    hint["action"] = "hint";
+                    hint["from"] = fromSq;
+                    hint["to"] = toSq;
+                    simSend(hint);
+                } catch (...) {}
+            }
         }
     }
 
