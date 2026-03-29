@@ -96,6 +96,7 @@ public:
 
     BoardRules rules;
     int gameMode;
+    bool boardFlipped = false;
     int flashState=0;
     ChessMove waitMove;         ///< The move the board is waiting for the player to complete.
     char moveType[4]= {'_','_','_','_'};
@@ -320,11 +321,17 @@ public:
             string mode = j["mode"];
             if(!mode.compare("play")) {
                 gameMode = MODE_PLAY;
+                boardFlipped = false;
                 jresult["message"] = "game mode set to MODE_PLAY";
                 clearLeds();
             } else if(!mode.compare("setup")) {
                 gameMode = MODE_SETUP;
                 jresult["message"] = "game mode set to MODE_SETUP";
+                clearLeds();
+            } else if(!mode.compare("playblack")) {
+                gameMode = MODE_PLAY;
+                boardFlipped = true;
+                jresult["message"] = "game mode set to MODE_PLAY (black side)";
                 clearLeds();
             } else if(!mode.compare("inspect")) {
                 gameMode = MODE_INSPECT;
@@ -357,36 +364,43 @@ public:
         ChessMove m;
         int index=0;
         printf("doMove from=%s to=%s lan=%s\n",ca->move(index).from(),ca->move(index).to(),ca->move(index).lan());
-        if(rules.isMoveValid(ca->move(index).lan())) {
-            waitMove.setFrom(ca->move(index).fromIndex());
-            waitMove.setTo(ca->move(index).toIndex());
+        string lan_str = ca->move(index).lan();
+        string from_str = ca->move(index).from();
+        string to_str = ca->move(index).to();
+        int fromIdx = toIndex(from_str.c_str());
+        int toIdx = toIndex(to_str.c_str());
+        // When board is flipped, validate using the unflipped lan (real chess move)
+        // Validate using the lan directly
+        if(rules.isMoveValid(lan_str.c_str())) {
+            waitMove.setFrom(fromIdx);
+            waitMove.setTo(toIdx);
             waitMove.setType(ca->move(index).type());
-            ledState[ca->move(index).fromIndex()]=1;
-            ledState[ca->move(index).toIndex()]=1;
+            ledState[fromIdx]=1;
+            ledState[toIdx]=1;
             gameMode=MODE_MOVE;
             moveIndex=0;
             if(!strcmp(ca->move(index).type(), "capture")) {
                 moveType[0]=MOVE_UP;
                 moveType[1]=MOVE_UP;
                 moveType[2]=MOVE_DOWN;
-                moveSquareIndex[0]=ca->move(index).fromIndex();
-                moveSquareIndex[1]=ca->move(index).toIndex();
-                moveSquareIndex[2]=ca->move(index).toIndex();
+                moveSquareIndex[0]=fromIdx;
+                moveSquareIndex[1]=toIdx;
+                moveSquareIndex[2]=toIdx;
                 movesNeeded=3;
             } else if(!strcmp(ca->move(index).type(), "takeback_capture")) {
                 moveType[0]=MOVE_UP;
                 moveType[1]=MOVE_DOWN;
                 moveType[2]=MOVE_DOWN;
-                moveSquareIndex[0]=ca->move(index).fromIndex();
-                moveSquareIndex[1]=ca->move(index).fromIndex();
-                moveSquareIndex[2]=ca->move(index).toIndex();
-                led(ca->move(index).fromIndex(), LED_FLASH);
+                moveSquareIndex[0]=fromIdx;
+                moveSquareIndex[1]=fromIdx;
+                moveSquareIndex[2]=toIdx;
+                led(fromIdx, LED_FLASH);
                 movesNeeded=3;
             } else {
                 moveType[0]=MOVE_UP;
                 moveType[1]=MOVE_DOWN;
-                moveSquareIndex[0]=ca->move(index).fromIndex();
-                moveSquareIndex[1]=ca->move(index).toIndex();
+                moveSquareIndex[0]=fromIdx;
+                moveSquareIndex[1]=toIdx;
                 movesNeeded=2;
             }
 
@@ -396,7 +410,7 @@ public:
         } else {
             json j;
             j["action"] = "invalid_move";
-            j["lan"] = ca->move(index).lan();
+            j["lan"] = lan_str;
             printf("%s\n",j.dump().c_str());
             psocket->print("%s\n",j.dump().c_str());
             return;
@@ -504,14 +518,14 @@ public:
         unsigned int len = moves.size();
         int validMoves=0;
         clearLeds();
-        led(fromIndex,LED_ON);
+        led(physIndex(fromIndex),LED_ON);
         for(int i=0; i<len; i++) {
             thc::Move mv = moves[i];
             std::string mv_txt = mv.TerseOut();
 //            printf("checking move %s > %s\n",mv_txt.c_str(),bufFrom);
             if(mv_txt[0] == bufFrom[0] && mv_txt[1] == bufFrom[1]) {
                 int to=toIndex(mv_txt[2],mv_txt[3]);
-                led(to,1);
+                led(physIndex(to),1);
                 validMoves++;
             }
         }
@@ -607,6 +621,7 @@ public:
         if(toIndex != moveSquareIndex[0]) {
             //this is a move, player didn't replace the piece on the square they lifted it off from
             char buffer[SAN_BUF_SIZE];
+            // Use direct indices for chess validation (physical squares = chess squares)
             toLAN(buffer, sizeof(buffer), moveSquareIndex[0], toIndex);
             thc::Move mv;
             mv.TerseIn(&rules, buffer);
@@ -651,7 +666,17 @@ public:
                 flashKingCheck();
             }
         }
-        setPosition(rules.ForsythPublish().c_str());
+        if (!boardFlipped) {
+            setPosition(rules.ForsythPublish().c_str());
+        } else {
+            clearLeds();
+            // Update squareState for the squares that physically changed
+            // fromIdx and toIdx are chess indices; physical squares are physIndex(from/to)
+            // Mark chess fromIdx as empty, chess toIdx as occupied
+            squareState[moveSquareIndex[0]] = 0; // piece left this chess square
+            squareState[toIndex] = 1;             // piece arrived at this chess square
+            gameMode = MODE_PLAY;
+        }
         evaluateCheckMate();
         evaluateDraw();
     }
@@ -664,7 +689,7 @@ public:
                 //state 0=piece lifted, 1=piece dropped
                 squareState[i] = state;
                 char buffer[SAN_BUF_SIZE];
-                toMove(buffer, sizeof(buffer), toCol(i), toRow(i));
+                toMove(buffer, sizeof(buffer), toCol(i), toRow(i)); // report chess square
                 json j;
                 j["action"] = state ? "pieceDown" : "pieceUp";
                 j["square"] = buffer;
@@ -675,7 +700,8 @@ public:
                 if (!state && !moveIndex) {
                     //picked up first piece
                     printf("picked up first piece\n");
-                    if(showValidSquares(i)) {
+                    int chessI = i; // always use chess index directly
+                    if(showValidSquares(chessI)) {
                         moveType[moveIndex] = MOVE_UP;
                         moveSquareIndex[moveIndex] = i;
                         moveIndex++;
@@ -827,6 +853,10 @@ public:
         return state==0;
     }
 
+    /** Flip index for black-side play */
+    int physIndex(int index) {
+        return boardFlipped ? (63 - index) : index;
+    }
     /** Sets the LED state, doesn't actually turn on/off the led. */
     void led(int index,int state) {
         ledState[index] = state;

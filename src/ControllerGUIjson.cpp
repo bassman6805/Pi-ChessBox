@@ -138,6 +138,54 @@ void ControllerGUI::initComponents() {
     };
 }
 
+// Mirror a FEN string for physical board when playing as black
+// Reverses both rank order and file order, swaps piece colors
+// This maps chess coordinates to physical coordinates when board is flipped
+static std::string mirrorFen(const std::string& fen) {
+    std::string pos, rest;
+    size_t sp = fen.find(' ');
+    if (sp == std::string::npos) { pos = fen; rest = " b - - 0 1"; }
+    else { pos = fen.substr(0, sp); rest = fen.substr(sp); }
+    // Split into ranks
+    std::vector<std::string> ranks;
+    std::string rank;
+    for (char c : pos) {
+        if (c == '/') { ranks.push_back(rank); rank = ""; }
+        else rank += c;
+    }
+    ranks.push_back(rank);
+    // Reverse rank order AND file order within each rank, then swap colors
+    std::reverse(ranks.begin(), ranks.end());
+    // Expand each rank to 8 squares, reverse, then compress back
+    std::string mirrored;
+    for (size_t i = 0; i < ranks.size(); i++) {
+        if (i > 0) mirrored += '/';
+        // Expand rank
+        std::string expanded;
+        for (char c : ranks[i]) {
+            if (c >= '1' && c <= '8') { for(int j=0;j<c-'0';j++) expanded += '.'; }
+            else expanded += c;
+        }
+        // Reverse files
+        std::reverse(expanded.begin(), expanded.end());
+        // Compress back and swap colors
+        int empty = 0;
+        for (char c : expanded) {
+            if (c == '.') { empty++; }
+            else {
+                if (empty > 0) { mirrored += (char)('0'+empty); empty = 0; }
+                if (c >= 'a' && c <= 'z') mirrored += (char)(c-32);
+                else if (c >= 'A' && c <= 'Z') mirrored += (char)(c+32);
+                else mirrored += c;
+            }
+        }
+        if (empty > 0) mirrored += (char)('0'+empty);
+    }
+    // Flip side to move
+    char side = (rest.size()>1 && rest[1]=='w') ? 'b' : 'w';
+    return mirrored + " " + side + " - - 0 1";
+}
+
 void ControllerGUI::update(long ticks) {
     Window::update(ticks);
     if (m_menuPopup) m_menuPopup->update(ticks);
@@ -195,6 +243,25 @@ void ControllerGUI::update(long ticks) {
                 std::string action = msg.value("action", "");
                 fprintf(stderr, "JSON ACTION: [%s]\n", action.c_str());
                 // Handle takeback completion format before early break
+                if (action.empty() && msg.contains("from") && msg.contains("to") && msg.value("type","") == "move") {
+                    // Check if this is engine move confirmation when playing as black
+                    if (!m_undoConfirm.active && m_humanIsBlack && !m_pendingEngineMove.empty()) {
+                        std::string from = msg.value("from", "");
+                        std::string to   = msg.value("to", "");
+                        for(auto& ch : from) ch = tolower(ch);
+                        for(auto& ch : to)   ch = tolower(ch);
+                        std::string lan = from + to;
+                        std::string flipped = simLan(m_pendingEngineMove);
+                        fprintf(stderr, "BLACK CONFIRM: lan=%s flipped=%s pending=%s\n", lan.c_str(), flipped.c_str(), m_pendingEngineMove.c_str());
+                        if (lan == flipped || lan == m_pendingEngineMove) {
+                            fprintf(stderr, "ENGINE MOVE CONFIRMED (black mode): %s\n", m_pendingEngineMove.c_str());
+                            m_pendingEngineMove = "";
+                            m_board->clearHighlights();
+                            lockoutTimer = 0;
+                            break;
+                        }
+                    }
+                }
                 if (action.empty() && msg.contains("from") && msg.contains("to") && msg.value("type","") == "move" && m_undoConfirm.active) {
                     std::string from = msg.value("from", "");
                     std::string to   = msg.value("to", "");
@@ -295,11 +362,14 @@ void ControllerGUI::update(long ticks) {
                     fprintf(stderr, "HW MOVE CHECK: lan=%s engineToMove=%d lockout=%ld\n", lan.c_str(), isEngineToMove()?1:0, lockoutTimer);
                     // Check if this is physical confirmation of engine move
                     fprintf(stderr, "HW MOVE pending=[%s] lan=[%s] match=%d\n", m_pendingEngineMove.c_str(), lan.c_str(), (lan==m_pendingEngineMove)?1:0);
-                    if (!lan.empty() && !m_pendingEngineMove.empty() && lan == m_pendingEngineMove) {
+                    // Also check flipped lan for when playing as black
+                    std::string flippedPending = m_humanIsBlack ? simLan(m_pendingEngineMove) : m_pendingEngineMove;
+                    if (!lan.empty() && !m_pendingEngineMove.empty() && (lan == m_pendingEngineMove || lan == flippedPending)) {
                         fprintf(stderr, "ENGINE MOVE CONFIRMED physically via HW move: %s\n", lan.c_str());
                         m_pendingEngineMove = "";
                         m_board->clearHighlights();
                         lockoutTimer = 0;
+                        // Note: don't send setposition when playing as black - physical board is flipped
                         break;
                     }
                     // Handle undo confirmation via HW move
@@ -700,14 +770,17 @@ void ControllerGUI::update(long ticks) {
             bool lastWasCastle = (m_lastHumanMove=="e1g1"||m_lastHumanMove=="e1c1"||m_lastHumanMove=="e8g8"||m_lastHumanMove=="e8c8");
             m_lastHumanMove = "";
             // Update cbcontroller board position so LEDs work for black moves
-            try {
-                nlohmann::json jpos;
-                jpos["action"] = "setposition";
-                jpos["fen"] = preMovefen;
-                std::string sp = jpos.dump() + "\r\n";
-                m_connector->send(sp.c_str());
-                fprintf(stderr, "SETPOSITION sent: %s\n", preMovefen.c_str());
-            } catch (...) { fprintf(stderr, "SETPOSITION send failed\n"); }
+            // Skip setposition when playing as black - physical board has pieces swapped
+            if (!m_humanIsBlack) {
+                try {
+                    nlohmann::json jpos;
+                    jpos["action"] = "setposition";
+                    jpos["fen"] = preMovefen;
+                    std::string sp = jpos.dump() + "\r\n";
+                    m_connector->send(sp.c_str());
+                    fprintf(stderr, "SETPOSITION sent: %s\n", preMovefen.c_str());
+                } catch (...) { fprintf(stderr, "SETPOSITION send failed\n"); }
+            }
             if (m_connector && m_connector->isConnected()) {
                 try {
                     if (m_board->isCheckmate()) {
@@ -727,17 +800,23 @@ void ControllerGUI::update(long ticks) {
                         simSend(nlohmann::json{{"action","flash"},{"on",false},{"squares",nlohmann::json::array()}});
                     }
                     {
-                        nlohmann::json mv;
-                        mv["action"] = "move";
-                        mv["description"] = nullptr;
-                        nlohmann::json m;
-                        m["from"] = moveStr.substr(0,2);
-                        m["to"]   = moveStr.substr(2,2);
-                        m["lan"]  = moveStr;
-                        m["type"] = "move";
-                        mv["moves"] = nlohmann::json::array({m});
                         if (lastWasCastle) SDL_Delay(2000); // wait for rook LED before showing engine move
-                        simSend(mv);
+                        fprintf(stderr, "ENGINE MOVE SEND: humanIsBlack=%d\n", m_humanIsBlack?1:0);
+                        if (m_humanIsBlack) {
+                            // Skip LED hint for white engine move - GUI shows the move, LEDs would confuse cbcontroller
+                            fprintf(stderr, "BLACK: skipping LED hint for white engine move %s\n", moveStr.c_str());
+                        } else {
+                            nlohmann::json mv;
+                            mv["action"] = "move";
+                            mv["description"] = nullptr;
+                            nlohmann::json m;
+                            m["from"] = moveStr.substr(0,2);
+                            m["to"]   = moveStr.substr(2,2);
+                            m["lan"]  = moveStr;
+                            m["type"] = "move";
+                            mv["moves"] = nlohmann::json::array({m});
+                            simSend(mv);
+                        }
                     }
                 } catch (...) {}
                 lockoutTimer = m_humanIsBlack ? 0 : 800;
@@ -748,8 +827,8 @@ void ControllerGUI::update(long ticks) {
 
 static std::string flipSquare(const std::string& sq) {
     if (sq.size() < 2) return sq;
-    char file = 'a' + ('h' - sq[0]); // mirror file: a<->h, b<->g, etc.
-    char rank = '1' + ('8' - sq[1]); // mirror rank: 1<->8, 2<->7, etc.
+    char file = 'a' + ('h' - sq[0]); // mirror file: a<->h
+    char rank = '1' + ('8' - sq[1]); // mirror rank: 1<->8
     return std::string({file, rank});
 }
 
@@ -766,6 +845,7 @@ void ControllerGUI::simSend(const nlohmann::json& j) const {
     if (!m_connector || !m_connector->isConnected()) return;
     try { std::string s = j.dump() + "\n"; m_connector->send(s.c_str()); fprintf(stderr, "SIMSEND: %s", s.c_str()); } catch (...) {}
 }
+
 
 void ControllerGUI::newGame() {
     m_board->Forsyth("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -794,6 +874,11 @@ void ControllerGUI::newGame() {
             jpos["fen"] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             std::string sp = jpos.dump() + "\r\n";
             m_connector->send(sp.c_str());
+            // Set board orientation
+            nlohmann::json jmode;
+            jmode["action"] = "setmode";
+            jmode["mode"] = m_humanIsBlack ? "playblack" : "play";
+            m_connector->send((jmode.dump() + "\r\n").c_str());
         } catch (...) {}
     }
     if (m_humanIsBlack) {
