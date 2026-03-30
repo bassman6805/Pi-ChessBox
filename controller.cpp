@@ -313,17 +313,22 @@ public:
                 squareState[i] = readState(i);
             }
             printf("setPosition boardFlipped: rules updated to %s\n", rules.ForsythPublish().c_str());
-            gameMode = MODE_PLAY;
+            gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
         } else {
             for(int i=0; i<64; i++) {
                 squareState[i] = (rules.pieceAt(i) == ' ' ? 0 : 1);
             }
-            gameMode = isBoardSetup() ? MODE_PLAY:MODE_SETPOSITION;
+            gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
         }
     }
     void setPosition(json& j,json& jresult) {
         string fen = j["fen"];
+        int savedMode = gameMode;
         setPosition(fen.c_str());
+        // During gameplay, don't trigger setup mode from position updates
+        if (savedMode == MODE_PLAY || savedMode == MODE_MOVE) {
+            gameMode = MODE_PLAY;
+        }
         display_position(rules);
         jresult["success"] = true;
     }
@@ -333,19 +338,19 @@ public:
         if(j.count("mode")==1) {
             string mode = j["mode"];
             if(!mode.compare("play")) {
-                gameMode = MODE_PLAY;
                 boardFlipped = false;
-                jresult["message"] = "game mode set to MODE_PLAY";
                 clearLeds();
+                gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
+                jresult["message"] = "game mode set to MODE_PLAY";
             } else if(!mode.compare("setup")) {
                 gameMode = MODE_SETUP;
                 jresult["message"] = "game mode set to MODE_SETUP";
                 clearLeds();
             } else if(!mode.compare("playblack")) {
-                gameMode = MODE_PLAY;
                 boardFlipped = true;
-                jresult["message"] = "game mode set to MODE_PLAY (black side)";
                 clearLeds();
+                gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
+                jresult["message"] = "game mode set to MODE_PLAY (black side)";
             } else if(!mode.compare("inspect")) {
                 gameMode = MODE_INSPECT;
                 jresult["message"] = "game mode set to MODE_INSPECT";
@@ -531,14 +536,14 @@ public:
         unsigned int len = moves.size();
         int validMoves=0;
         clearLeds();
-        led(physIndex(fromIndex),LED_ON);
+        led(fromIndex,LED_ON);
         for(int i=0; i<len; i++) {
             thc::Move mv = moves[i];
             std::string mv_txt = mv.TerseOut();
 //            printf("checking move %s > %s\n",mv_txt.c_str(),bufFrom);
             if(mv_txt[0] == bufFrom[0] && mv_txt[1] == bufFrom[1]) {
                 int to=toIndex(mv_txt[2],mv_txt[3]);
-                led(physIndex(to),1);
+                led(to,1);
                 validMoves++;
             }
         }
@@ -634,10 +639,7 @@ public:
         if(toIndex != moveSquareIndex[0]) {
             //this is a move, player didn't replace the piece on the square they lifted it off from
             char buffer[SAN_BUF_SIZE];
-            // Map physical indices to chess indices for validation
-            int chessFrom = physIndex(moveSquareIndex[0]);
-            int chessTo = physIndex(toIndex);
-            toLAN(buffer, sizeof(buffer), chessFrom, chessTo);
+            toLAN(buffer, sizeof(buffer), moveSquareIndex[0], toIndex);
             thc::Move mv;
             mv.TerseIn(&rules, buffer);
             printf("full move is %s - %s\n", buffer,mv.NaturalOut(&rules).c_str());
@@ -715,8 +717,7 @@ public:
                 if (!state && !moveIndex) {
                     //picked up first piece
                     printf("picked up first piece\n");
-                    int chessI = physIndex(i); // map physical to chess square
-                    if(showValidSquares(chessI)) {
+                    if(showValidSquares(i)) {
                         moveType[moveIndex] = MOVE_UP;
                         moveSquareIndex[moveIndex] = i;
                         moveIndex++;
@@ -819,10 +820,10 @@ public:
             int state = readState(i);
             if(squareState[i] != state) {
                 complete=false;
-                if(state && !squareState[i])
-                    led(i,LED_FLASH);   //flash
-                else if(!state && squareState[i])
-                    led(i,LED_ON);   //just turn it on
+                if(!state && squareState[i])
+                    led(i,LED_FLASH);   //flash - missing piece
+                else if(state && !squareState[i])
+                    led(i,LED_ON);   //solid - extra piece, move away
             } else {
                 led(i,LED_OFF);
             }
