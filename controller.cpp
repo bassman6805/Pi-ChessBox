@@ -869,13 +869,11 @@ public:
         return state==0;
     }
 
-    /** Flip index for black-side play */
+    /** Map chess index to physical LED index (file is hardware-mirrored) */
     int physIndex(int index) {
-        if (!boardFlipped) return index;
-        // Mirror rank only (file stays same): rank 8<->1, 7<->2, etc.
         int row = index / 8;
         int col = index % 8;
-        return (7 - row) * 8 + col;
+        return row * 8 + (7 - col);  // mirror file to match hardware wiring
     }
     /** Sets the LED state, doesn't actually turn on/off the led. */
     void led(int index,int state) {
