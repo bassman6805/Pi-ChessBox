@@ -262,11 +262,15 @@ public:
         clearLeds();
         if (j.contains("from")) {
             string from = j["from"];
-            led(toIndex(from.c_str()), LED_ON);
+            int idx = toIndex(from.c_str());
+            printf("HINT from=%s index=%d\n", from.c_str(), idx);
+            led(idx, LED_ON);
         }
         if (j.contains("to")) {
             string to = j["to"];
-            led(toIndex(to.c_str()), LED_ON);
+            int idx = toIndex(to.c_str());
+            printf("HINT to=%s index=%d\n", to.c_str(), idx);
+            led(idx, LED_ON);
         }
     }
 
@@ -303,10 +307,19 @@ public:
     void setPosition(const char* fen) {
         clearLeds();
         rules.Forsyth(fen);
-        for(int i=0; i<64; i++) {
-            squareState[i] = (rules.pieceAt(i) == ' ' ? 0 : 1);
+        if (boardFlipped) {
+            // When board is flipped, sync squareState from physical board
+            for(int i=0; i<64; i++) {
+                squareState[i] = readState(i);
+            }
+            printf("setPosition boardFlipped: rules updated to %s\n", rules.ForsythPublish().c_str());
+            gameMode = MODE_PLAY;
+        } else {
+            for(int i=0; i<64; i++) {
+                squareState[i] = (rules.pieceAt(i) == ' ' ? 0 : 1);
+            }
+            gameMode = isBoardSetup() ? MODE_PLAY:MODE_SETPOSITION;
         }
-        gameMode = isBoardSetup() ? MODE_PLAY:MODE_SETPOSITION;
     }
     void setPosition(json& j,json& jresult) {
         string fen = j["fen"];
@@ -621,8 +634,10 @@ public:
         if(toIndex != moveSquareIndex[0]) {
             //this is a move, player didn't replace the piece on the square they lifted it off from
             char buffer[SAN_BUF_SIZE];
-            // Use direct indices for chess validation (physical squares = chess squares)
-            toLAN(buffer, sizeof(buffer), moveSquareIndex[0], toIndex);
+            // Map physical indices to chess indices for validation
+            int chessFrom = physIndex(moveSquareIndex[0]);
+            int chessTo = physIndex(toIndex);
+            toLAN(buffer, sizeof(buffer), chessFrom, chessTo);
             thc::Move mv;
             mv.TerseIn(&rules, buffer);
             printf("full move is %s - %s\n", buffer,mv.NaturalOut(&rules).c_str());
@@ -700,7 +715,7 @@ public:
                 if (!state && !moveIndex) {
                     //picked up first piece
                     printf("picked up first piece\n");
-                    int chessI = i; // always use chess index directly
+                    int chessI = physIndex(i); // map physical to chess square
                     if(showValidSquares(chessI)) {
                         moveType[moveIndex] = MOVE_UP;
                         moveSquareIndex[moveIndex] = i;
@@ -740,6 +755,7 @@ public:
                     setPosition(rules.ForsythPublish().c_str());
                 } else if(state && !moveIndex) {
                     //piece down but no piece up, not valid
+                    if (boardFlipped && i < 32) { squareState[i] = readState(i); continue; }
                     printf("put down a piece but none picked up\n");
                     setPosition(rules.ForsythPublish().c_str());
                 } else if(state) {
@@ -855,7 +871,11 @@ public:
 
     /** Flip index for black-side play */
     int physIndex(int index) {
-        return boardFlipped ? (63 - index) : index;
+        if (!boardFlipped) return index;
+        // Mirror rank only (file stays same): rank 8<->1, 7<->2, etc.
+        int row = index / 8;
+        int col = index % 8;
+        return (7 - row) * 8 + col;
     }
     /** Sets the LED state, doesn't actually turn on/off the led. */
     void led(int index,int state) {

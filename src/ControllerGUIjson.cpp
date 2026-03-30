@@ -369,7 +369,16 @@ void ControllerGUI::update(long ticks) {
                         m_pendingEngineMove = "";
                         m_board->clearHighlights();
                         lockoutTimer = 0;
-                        // Note: don't send setposition when playing as black - physical board is flipped
+                        // Send setposition to resync cbcontroller after engine move confirmed
+                        if (m_humanIsBlack && m_connector && m_connector->isConnected()) {
+                            try {
+                                nlohmann::json jp;
+                                jp["action"] = "setposition";
+                                jp["fen"] = std::string(m_board->getFen());
+                                m_connector->send((jp.dump() + "\r\n").c_str());
+                                fprintf(stderr, "RESYNC after engine confirm: %s\n", m_board->getFen());
+                            } catch (...) {}
+                        }
                         break;
                     }
                     // Handle undo confirmation via HW move
@@ -803,8 +812,12 @@ void ControllerGUI::update(long ticks) {
                         if (lastWasCastle) SDL_Delay(2000); // wait for rook LED before showing engine move
                         fprintf(stderr, "ENGINE MOVE SEND: humanIsBlack=%d\n", m_humanIsBlack?1:0);
                         if (m_humanIsBlack) {
-                            // Skip LED hint for white engine move - GUI shows the move, LEDs would confuse cbcontroller
-                            fprintf(stderr, "BLACK: skipping LED hint for white engine move %s\n", moveStr.c_str());
+                            nlohmann::json hint;
+                            hint["action"] = "hint";
+                            hint["from"] = simSq(moveStr.substr(0,2));
+                            hint["to"]   = simSq(moveStr.substr(2,2));
+                            fprintf(stderr, "BLACK HINT (simSq): %s->%s\n", simSq(moveStr.substr(0,2)).c_str(), simSq(moveStr.substr(2,2)).c_str());
+                            simSend(hint);
                         } else {
                             nlohmann::json mv;
                             mv["action"] = "move";
@@ -827,8 +840,8 @@ void ControllerGUI::update(long ticks) {
 
 static std::string flipSquare(const std::string& sq) {
     if (sq.size() < 2) return sq;
-    char file = 'a' + ('h' - sq[0]); // mirror file: a<->h
-    char rank = '1' + ('8' - sq[1]); // mirror rank: 1<->8
+    char file = sq[0]; // keep file same
+    char rank = '1' + ('8' - sq[1]); // mirror rank only: 1<->8, 2<->7, etc.
     return std::string({file, rank});
 }
 
