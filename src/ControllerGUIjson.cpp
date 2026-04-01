@@ -683,6 +683,16 @@ void ControllerGUI::update(long ticks) {
                                 }
                             } catch (...) {}
                             lockoutTimer = 800;
+                            // Send updated position to controller after human move
+                            if (m_connector && m_connector->isConnected()) {
+                                try {
+                                    nlohmann::json jp;
+                                    jp["action"] = "setposition";
+                                    jp["fen"] = std::string(m_board->getFen());
+                                    m_connector->send((jp.dump() + "\r\n").c_str());
+                                    fprintf(stderr, "POST-HUMAN-MOVE SETPOSITION: %s\n", m_board->getFen());
+                                } catch (...) {}
+                            }
                             fprintf(stderr, "HUMAN MOVE: %s sent, requesting engine move\n", fullMove.c_str());
                             if (isEngineToMove()) {
                                 m_engineMoveRequested = true;
@@ -778,18 +788,15 @@ void ControllerGUI::update(long ticks) {
             fprintf(stderr, "ENGINE MOVE: %s applied, waiting for physical confirmation\n", moveStr.c_str());
             bool lastWasCastle = (m_lastHumanMove=="e1g1"||m_lastHumanMove=="e1c1"||m_lastHumanMove=="e8g8"||m_lastHumanMove=="e8c8");
             m_lastHumanMove = "";
-            // Update cbcontroller board position so LEDs work for black moves
-            // Skip setposition when playing as black - physical board has pieces swapped
-            if (!m_humanIsBlack) {
-                try {
-                    nlohmann::json jpos;
-                    jpos["action"] = "setposition";
-                    jpos["fen"] = preMovefen;
-                    std::string sp = jpos.dump() + "\r\n";
-                    m_connector->send(sp.c_str());
-                    fprintf(stderr, "SETPOSITION sent: %s\n", preMovefen.c_str());
-                } catch (...) { fprintf(stderr, "SETPOSITION send failed\n"); }
-            }
+            // Always send setposition so controller knows current position
+            try {
+                nlohmann::json jpos;
+                jpos["action"] = "setposition";
+                jpos["fen"] = std::string(m_board->getFen());
+                std::string sp = jpos.dump() + "\r\n";
+                m_connector->send(sp.c_str());
+                fprintf(stderr, "SETPOSITION sent: %s\n", m_board->getFen());
+            } catch (...) { fprintf(stderr, "SETPOSITION send failed\n"); }
             if (m_connector && m_connector->isConnected()) {
                 try {
                     if (m_board->isCheckmate()) {
@@ -846,7 +853,7 @@ static std::string flipSquare(const std::string& sq) {
 }
 
 std::string ControllerGUI::simSq(const std::string& sq) const {
-    return m_humanIsBlack ? flipSquare(sq) : sq;
+    return sq;  // physical board never rotates; always use real chess coordinates
 }
 
 std::string ControllerGUI::simLan(const std::string& lan) const {

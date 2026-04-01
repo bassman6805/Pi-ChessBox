@@ -132,7 +132,7 @@ public:
 
             for(int col=0; col<8; col++) {
                 int inputCol = col;
-                int outputCol = 7-col;
+                int outputCol = 7-col;  // pin 0=h-file, pin 7=a-file
                 pinMode(baseInput+inputCol,INPUT);
                 pullUpDnControl(baseInput+inputCol,PUD_UP);
                 pinMode(baseOutput+outputCol,OUTPUT);
@@ -254,7 +254,7 @@ public:
         string square = j["square"];
         int index = toIndex(square.c_str());
         printf("square=%s index=%d\n",square.c_str(),index);
-        led(index,ledState[index]?LED_OFF:LED_ON); //flip from on to off and off to on
+        led(physIndex(index),ledState[physIndex(index)]?LED_OFF:LED_ON); //flip from on to off and off to on
     }
 
     void setHint(json& j, json& jresult) {
@@ -263,14 +263,15 @@ public:
         if (j.contains("from")) {
             string from = j["from"];
             int idx = toIndex(from.c_str());
-            printf("HINT from=%s index=%d\n", from.c_str(), idx);
-            led(idx, LED_ON);
+            int pidx = ledIndex(idx);
+            printf("HINT from=%s index=%d ledIndex=%d\n", from.c_str(), idx, pidx);
+            led(pidx, LED_ON);
         }
         if (j.contains("to")) {
             string to = j["to"];
             int idx = toIndex(to.c_str());
             printf("HINT to=%s index=%d\n", to.c_str(), idx);
-            led(idx, LED_ON);
+            led(ledIndex(idx), LED_ON);
         }
     }
 
@@ -305,7 +306,7 @@ public:
     }
 
     void setPosition(const char* fen) {
-        clearLeds();
+        if (gameMode != MODE_MOVE && moveIndex == 0) clearLeds();
         rules.Forsyth(fen);
         if (boardFlipped) {
             // When board is flipped, sync squareState from physical board
@@ -313,22 +314,17 @@ public:
                 squareState[i] = readState(i);
             }
             printf("setPosition boardFlipped: rules updated to %s\n", rules.ForsythPublish().c_str());
-            gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
+            gameMode = MODE_PLAY;
         } else {
             for(int i=0; i<64; i++) {
                 squareState[i] = (rules.pieceAt(i) == ' ' ? 0 : 1);
             }
-            gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
+            gameMode = isBoardSetup() ? MODE_PLAY:MODE_SETPOSITION;
         }
     }
     void setPosition(json& j,json& jresult) {
         string fen = j["fen"];
-        int savedMode = gameMode;
         setPosition(fen.c_str());
-        // During gameplay, don't trigger setup mode from position updates
-        if (savedMode == MODE_PLAY || savedMode == MODE_MOVE) {
-            gameMode = MODE_PLAY;
-        }
         display_position(rules);
         jresult["success"] = true;
     }
@@ -338,19 +334,19 @@ public:
         if(j.count("mode")==1) {
             string mode = j["mode"];
             if(!mode.compare("play")) {
+                gameMode = MODE_PLAY;
                 boardFlipped = false;
-                clearLeds();
-                gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
                 jresult["message"] = "game mode set to MODE_PLAY";
+                clearLeds();
             } else if(!mode.compare("setup")) {
                 gameMode = MODE_SETUP;
                 jresult["message"] = "game mode set to MODE_SETUP";
                 clearLeds();
             } else if(!mode.compare("playblack")) {
+                gameMode = MODE_PLAY;
                 boardFlipped = true;
-                clearLeds();
-                gameMode = isBoardSetup() ? MODE_PLAY : MODE_SETPOSITION;
                 jresult["message"] = "game mode set to MODE_PLAY (black side)";
+                clearLeds();
             } else if(!mode.compare("inspect")) {
                 gameMode = MODE_INSPECT;
                 jresult["message"] = "game mode set to MODE_INSPECT";
@@ -390,11 +386,13 @@ public:
         // When board is flipped, validate using the unflipped lan (real chess move)
         // Validate using the lan directly
         if(rules.isMoveValid(lan_str.c_str())) {
+            clearLeds();
             waitMove.setFrom(fromIdx);
             waitMove.setTo(toIdx);
             waitMove.setType(ca->move(index).type());
-            ledState[fromIdx]=1;
-            ledState[toIdx]=1;
+            printf("doMove LED: fromIdx=%d physIndex=%d toIdx=%d physIndex=%d\n", fromIdx, physIndex(fromIdx), toIdx, physIndex(toIdx));
+            ledState[ledIndex(fromIdx)]=1;
+            ledState[ledIndex(toIdx)]=1;
             gameMode=MODE_MOVE;
             moveIndex=0;
             if(!strcmp(ca->move(index).type(), "capture")) {
@@ -508,7 +506,8 @@ public:
         for (int i = 0; i < 64; i++) {
             int state = readState(i);
             if (state != squareState[i]) {
-                snprintf(buffer, sizeof(buffer), "%c%c %s\n", toCol(i), toRow(i), (state ? "pieceDown" : "pieceUp"));
+                int chessI506 = physIndex(i);
+                snprintf(buffer, sizeof(buffer), "%c%c %s\n", toCol(chessI506), toRow(chessI506), (state ? "pieceDown" : "pieceUp"));
                 printf(buffer);
                 send2All(buffer);
             }
@@ -526,7 +525,7 @@ public:
     bool showValidSquares(int fromIndex) {
         char bufFrom[SAN_BUF_SIZE],bufTo[SAN_BUF_SIZE];
         snprintf(bufFrom, sizeof(bufFrom), "%c%c", toCol(fromIndex), toRow(fromIndex));
-//        printf("Move from %s\n",bufFrom);
+        printf("showValidSquares: fromIndex=%d bufFrom=%s\n", fromIndex, bufFrom);
 
         std::vector<thc::Move> moves;
         std::vector<bool> check;
@@ -536,14 +535,14 @@ public:
         unsigned int len = moves.size();
         int validMoves=0;
         clearLeds();
-        led(fromIndex,LED_ON);
+        led(ledIndex(fromIndex),LED_ON);
         for(int i=0; i<len; i++) {
             thc::Move mv = moves[i];
             std::string mv_txt = mv.TerseOut();
 //            printf("checking move %s > %s\n",mv_txt.c_str(),bufFrom);
             if(mv_txt[0] == bufFrom[0] && mv_txt[1] == bufFrom[1]) {
                 int to=toIndex(mv_txt[2],mv_txt[3]);
-                led(to,1);
+                led(ledIndex(to),1);
                 validMoves++;
             }
         }
@@ -639,7 +638,28 @@ public:
         if(toIndex != moveSquareIndex[0]) {
             //this is a move, player didn't replace the piece on the square they lifted it off from
             char buffer[SAN_BUF_SIZE];
-            toLAN(buffer, sizeof(buffer), moveSquareIndex[0], toIndex);
+            // Map physical indices to chess indices for validation
+            int chessFrom = moveSquareIndex[0];
+            int chessTo = toIndex;
+            toLAN(buffer, sizeof(buffer), chessFrom, chessTo);
+            if(boardFlipped && sendMove) {
+                json bj;
+                bj["action"] = "move";
+                bj["description"] = nullptr;
+                json bm;
+                bm["type"] = "move";
+                bm["from"] = string(buffer).substr(0,2);
+                bm["to"] = string(buffer).substr(2,2);
+                bm["lan"] = string(buffer);
+                bj["moves"] = json::array({bm});
+                printf("%s\n", bj.dump().c_str());
+                send2All(bj.dump().c_str());
+                send2All("\n");
+                // Sync squareState from physical board
+                for(int si=0; si<64; si++) squareState[si] = readState(si);
+                gameMode = MODE_PLAY;
+                return;
+            }
             thc::Move mv;
             mv.TerseIn(&rules, buffer);
             printf("full move is %s - %s\n", buffer,mv.NaturalOut(&rules).c_str());
@@ -706,7 +726,9 @@ public:
                 //state 0=piece lifted, 1=piece dropped
                 squareState[i] = state;
                 char buffer[SAN_BUF_SIZE];
-                toMove(buffer, sizeof(buffer), toCol(i), toRow(i)); // report chess square
+                int chessI707 = physIndex(i);
+                printf("SCAN: i=%d physIndex=%d\n", i, chessI707);
+                toMove(buffer, sizeof(buffer), toCol(chessI707), toRow(chessI707)); // report chess square
                 json j;
                 j["action"] = state ? "pieceDown" : "pieceUp";
                 j["square"] = buffer;
@@ -717,9 +739,11 @@ public:
                 if (!state && !moveIndex) {
                     //picked up first piece
                     printf("picked up first piece\n");
-                    if(showValidSquares(i)) {
+                    int chessI = boardFlipped ? ((7-(i/8))*8+(7-(i%8))) : i;
+                    if(boardFlipped || showValidSquares(chessI)) {
+                        if(boardFlipped) { clearLeds(); led(ledIndex(chessI), LED_FLASH); }
                         moveType[moveIndex] = MOVE_UP;
-                        moveSquareIndex[moveIndex] = i;
+                        moveSquareIndex[moveIndex] = chessI;
                         moveIndex++;
                     } else {
                         //todo lee would like to be able to pick up the piece you are capturing first
@@ -763,9 +787,10 @@ public:
                     //piece down
                     printf("put down piece\n");
                     moveType[moveIndex] = MOVE_DOWN;
-                    moveSquareIndex[moveIndex] = i;
+                    { int chessI2 = boardFlipped ? ((7-(i/8))*8+(7-(i%8))) : i;
+                    moveSquareIndex[moveIndex] = chessI2;
                     moveIndex++;
-                    finishMove(i,true);
+                    finishMove(chessI2,true); }
                 } else {
                     printf("WARNING should not get here\n");
                     assert(false);
@@ -781,11 +806,13 @@ public:
             int state = readState(i);
             if (state != squareState[i]) {
                 char type = state ? MOVE_DOWN:MOVE_UP;
-                if(moveType[moveIndex] == type && moveSquareIndex[moveIndex] == i) {
+                int chessIdle = boardFlipped ? ((7-(i/8))*8+(7-(i%8))) : i;
+                printf("idleMove: i=%d chessIdle=%d type=%c moveType=%c moveSquareIndex=%d\n", i, chessIdle, type, moveType[moveIndex], moveSquareIndex[moveIndex]);
+                if(moveType[moveIndex] == type && moveSquareIndex[moveIndex] == chessIdle) {
                     printf("got move %d %c\n",moveIndex,moveType[moveIndex]);
                     bool resetLed = (moveIndex==1 && type==MOVE_UP) ? false:true;
                     if(resetLed)
-                        led(i,LED_OFF);
+                        led(ledIndex(boardFlipped ? ((7-(i/8))*8+(7-(i%8))) : i),LED_OFF);
                     moveIndex++;
                     if(moveIndex == movesNeeded) {
                         //got all the moves we were waiting for
@@ -793,7 +820,7 @@ public:
                         printf("Move finished json=%s\n",waitMove.tojson().dump().c_str());
                         send2All(waitMove.tojson().dump().c_str());
                         send2All("\n");
-                        finishMove(moveSquareIndex[moveIndex-1],false);
+                        finishMove(moveSquareIndex[moveIndex-1],false); // moveSquareIndex is chess index
                     }
                 } else {
                     char buffer[SAN_BUF_SIZE];
@@ -820,12 +847,12 @@ public:
             int state = readState(i);
             if(squareState[i] != state) {
                 complete=false;
-                if(!state && squareState[i])
-                    led(i,LED_FLASH);   //flash - missing piece
-                else if(state && !squareState[i])
-                    led(i,LED_ON);   //solid - extra piece, move away
+                if(state && !squareState[i])
+                    led(ledIndex(i),LED_FLASH);   //flash
+                else if(!state && squareState[i])
+                    led(ledIndex(i),LED_ON);   //just turn it on
             } else {
-                led(i,LED_OFF);
+                led(ledIndex(i),LED_OFF);
             }
         }
         if(complete) {
@@ -872,9 +899,13 @@ public:
 
     /** Map chess index to physical LED index (file is hardware-mirrored) */
     int physIndex(int index) {
+        return index;  // scan index = chess index, no transform needed
+    }
+    int ledIndex(int index) {
         int row = index / 8;
         int col = index % 8;
-        return row * 8 + (7 - col);  // mirror file to match hardware wiring
+        if (!boardFlipped) return index;
+        return (7 - row) * 8 + (7 - col);  // when playing black, board is fully mirrored
     }
     /** Sets the LED state, doesn't actually turn on/off the led. */
     void led(int index,int state) {
