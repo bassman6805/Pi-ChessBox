@@ -97,6 +97,7 @@ public:
     BoardRules rules;
     int gameMode;
     bool boardFlipped = false;
+    bool pendingEngineMove = false;  // true when waiting for white move confirmation
     int flashState=0;
     ChessMove waitMove;         ///< The move the board is waiting for the player to complete.
     char moveType[4]= {'_','_','_','_'};
@@ -259,6 +260,7 @@ public:
 
     void setHint(json& j, json& jresult) {
         jresult["success"] = true;
+        pendingEngineMove = boardFlipped;  // when playing black, hint = engine move to confirm
         clearLeds();
         if (j.contains("from")) {
             string from = j["from"];
@@ -643,6 +645,7 @@ public:
             int chessTo = toIndex;
             toLAN(buffer, sizeof(buffer), chessFrom, chessTo);
             if(boardFlipped && sendMove) {
+                pendingEngineMove = false;
                 json bj;
                 bj["action"] = "move";
                 bj["description"] = nullptr;
@@ -740,8 +743,21 @@ public:
                     //picked up first piece
                     printf("picked up first piece\n");
                     int chessI = boardFlipped ? ((7-(i/8))*8+(7-(i%8))) : i;
-                    if(boardFlipped || showValidSquares(chessI)) {
-                        if(boardFlipped) { clearLeds(); led(ledIndex(chessI), LED_FLASH); }
+                    char piece = rules.pieceAt(chessI);
+                    bool isBlackPiece = boardFlipped && islower(piece) && piece != ' ';
+                    bool isWhitePiece = boardFlipped && isupper(piece) && piece != ' ';
+                    bool canMove = false;
+                    if(!boardFlipped) {
+                        canMove = showValidSquares(chessI);
+                    } else if(pendingEngineMove) {
+                        // Confirming engine move - keep hint LEDs, flash source
+                        led(ledIndex(chessI), LED_FLASH);
+                        canMove = true;
+                    } else if(isBlackPiece) {
+                        // Human black move - show legal destinations
+                        canMove = showValidSquares(chessI);
+                    }
+                    if(canMove) {
                         moveType[moveIndex] = MOVE_UP;
                         moveSquareIndex[moveIndex] = chessI;
                         moveIndex++;
