@@ -818,12 +818,12 @@ void ControllerGUI::update(long ticks) {
                     {
                         if (lastWasCastle) SDL_Delay(2000); // wait for rook LED before showing engine move
                         fprintf(stderr, "ENGINE MOVE SEND: humanIsBlack=%d\n", m_humanIsBlack?1:0);
-                        if (m_humanIsBlack) {
+                        if (true) {  // always use hint for engine moves
                             nlohmann::json hint;
                             hint["action"] = "hint";
-                            hint["from"] = simSq(moveStr.substr(0,2));
-                            hint["to"]   = simSq(moveStr.substr(2,2));
-                            fprintf(stderr, "BLACK HINT (simSq): %s->%s\n", simSq(moveStr.substr(0,2)).c_str(), simSq(moveStr.substr(2,2)).c_str());
+                            hint["from"] = moveStr.substr(0,2);
+                            hint["to"]   = moveStr.substr(2,2);
+                            fprintf(stderr, "ENGINE HINT: %s->%s\n", moveStr.substr(0,2).c_str(), moveStr.substr(2,2).c_str());
                             simSend(hint);
                         } else {
                             nlohmann::json mv;
