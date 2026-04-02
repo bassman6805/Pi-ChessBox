@@ -97,6 +97,7 @@ public:
     BoardRules rules;
     int gameMode;
     bool boardFlipped = false;
+    bool gameStarted = false;
     bool pendingEngineMove = false;  // true when waiting for white move confirmation
     int flashState=0;
     ChessMove waitMove;         ///< The move the board is waiting for the player to complete.
@@ -316,12 +317,14 @@ public:
                 squareState[i] = readState(i);
             }
             printf("setPosition boardFlipped: rules updated to %s\n", rules.ForsythPublish().c_str());
+            if(!gameStarted) gameStarted = true;
             gameMode = MODE_PLAY;
         } else {
             for(int i=0; i<64; i++) {
                 squareState[i] = (rules.pieceAt(i) == ' ' ? 0 : 1);
             }
-            gameMode = isBoardSetup() ? MODE_PLAY:MODE_SETPOSITION;
+            if(isBoardSetup()) { gameMode = MODE_PLAY; gameStarted = true; }
+            else { gameMode = MODE_SETPOSITION; }
         }
     }
     void setPosition(json& j,json& jresult) {
@@ -347,6 +350,9 @@ public:
             } else if(!mode.compare("playblack")) {
                 gameMode = MODE_PLAY;
                 boardFlipped = true;
+                moveIndex = 0;
+                pendingEngineMove = false;
+                gameStarted = false;
                 jresult["message"] = "game mode set to MODE_PLAY (black side)";
                 clearLeds();
             } else if(!mode.compare("inspect")) {
@@ -874,6 +880,7 @@ public:
         if(complete) {
             clearLeds();
             gameMode = MODE_PLAY;
+            gameStarted = true;
 //            json j;
 //            j["action"] = "setposition";
 //            j["status"] = "complete";

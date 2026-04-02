@@ -888,17 +888,17 @@ void ControllerGUI::newGame() {
     m_uciClient->setPosition(m_board->getFen());
     if (m_connector && m_connector->isConnected()) {
         try {
-            // Send setposition to cbcontroller so it resets board and lights LEDs for setup
+            // Send setmode first so controller resets gameStarted flag
+            nlohmann::json jmode;
+            jmode["action"] = "setmode";
+            jmode["mode"] = m_humanIsBlack ? "playblack" : "play";
+            m_connector->send((jmode.dump() + "\r\n").c_str());
+            // Then send setposition so it triggers setup check
             nlohmann::json jpos;
             jpos["action"] = "setposition";
             jpos["fen"] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
             std::string sp = jpos.dump() + "\r\n";
             m_connector->send(sp.c_str());
-            // Set board orientation
-            nlohmann::json jmode;
-            jmode["action"] = "setmode";
-            jmode["mode"] = m_humanIsBlack ? "playblack" : "play";
-            m_connector->send((jmode.dump() + "\r\n").c_str());
         } catch (...) {}
     }
     if (m_humanIsBlack) {
