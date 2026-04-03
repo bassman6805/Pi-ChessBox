@@ -97,7 +97,6 @@ public:
     BoardRules rules;
     int gameMode;
     bool boardFlipped = false;
-    bool gameStarted = false;
     bool pendingEngineMove = false;  // true when waiting for white move confirmation
     int flashState=0;
     ChessMove waitMove;         ///< The move the board is waiting for the player to complete.
@@ -312,19 +311,46 @@ public:
         if (gameMode != MODE_MOVE && moveIndex == 0) clearLeds();
         rules.Forsyth(fen);
         if (boardFlipped) {
-            // When board is flipped, sync squareState from physical board
-            for(int i=0; i<64; i++) {
-                squareState[i] = readState(i);
+            bool isStartPos = (strncmp(fen, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", 43) == 0);
+            printf("setPosition boardFlipped: fen=[%s] isStartPos=%d gameMode=%d fenlen=%d\n", fen, isStartPos, gameMode, (int)strlen(fen));
+            printf("first44=[");
+            for(int di=0; di<44 && fen[di]; di++) printf("%02x ", (unsigned char)fen[di]);
+            printf("]\n");
+            printf("expect =[");
+            const char* exp="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+            for(int di=0; di<44; di++) printf("%02x ", (unsigned char)exp[di]);
+            printf("]\n");
+            if (isStartPos) {
+                for (int i = 0; i < 64; i++) {
+                    int row = i / 8;
+                    squareState[i] = (row <= 1 || row >= 6) ? 1 : 0;
+                }
+                printf("setPosition boardFlipped new game: checking board setup\n");
+                if (isBoardSetup()) {
+                    gameMode = MODE_PLAY;
+                    json j;
+                    j["action"] = "ready";
+                    printf("%s\n",j.dump().c_str());
+                    send2All(j.dump().c_str());
+                    send2All("\n");
+                } else {
+                    gameMode = MODE_SETPOSITION;
+                }
+            } else if (gameMode == MODE_SETPOSITION) {
+                printf("setPosition boardFlipped: ignoring non-start FEN during setup\n");
+                return;
+            } else {
+                for (int i = 0; i < 64; i++) {
+                    squareState[i] = readState(i);
+                }
+                printf("setPosition boardFlipped mid-game: synced from hardware\n");
+                gameMode = MODE_PLAY;
             }
-            printf("setPosition boardFlipped: rules updated to %s\n", rules.ForsythPublish().c_str());
-            if(!gameStarted) gameStarted = true;
-            gameMode = MODE_PLAY;
         } else {
             for(int i=0; i<64; i++) {
                 squareState[i] = (rules.pieceAt(i) == ' ' ? 0 : 1);
             }
-            if(isBoardSetup()) { gameMode = MODE_PLAY; gameStarted = true; }
-            else { gameMode = MODE_SETPOSITION; }
+            gameMode = isBoardSetup() ? MODE_PLAY:MODE_SETPOSITION;
         }
     }
     void setPosition(json& j,json& jresult) {
@@ -350,9 +376,6 @@ public:
             } else if(!mode.compare("playblack")) {
                 gameMode = MODE_PLAY;
                 boardFlipped = true;
-                moveIndex = 0;
-                pendingEngineMove = false;
-                gameStarted = false;
                 jresult["message"] = "game mode set to MODE_PLAY (black side)";
                 clearLeds();
             } else if(!mode.compare("inspect")) {
@@ -870,23 +893,21 @@ public:
             if(squareState[i] != state) {
                 complete=false;
                 if(state && !squareState[i])
-                    led(ledIndex(i),LED_FLASH);   //flash
+                    led(i,LED_FLASH);   //flash - always use physical index during setup
                 else if(!state && squareState[i])
-                    led(ledIndex(i),LED_ON);   //just turn it on
+                    led(i,LED_ON);   //just turn it on
             } else {
-                led(ledIndex(i),LED_OFF);
+                led(i,LED_OFF);
             }
         }
         if(complete) {
             clearLeds();
             gameMode = MODE_PLAY;
-            gameStarted = true;
-//            json j;
-//            j["action"] = "setposition";
-//            j["status"] = "complete";
-//            printf("%s\n",j.dump().c_str());
-//            send2All(j.dump().c_str());
-//            send2All("\n");
+            json j;
+            j["action"] = "ready";
+            printf("%s\n",j.dump().c_str());
+            send2All(j.dump().c_str());
+            send2All("\n");
         }
     }
 

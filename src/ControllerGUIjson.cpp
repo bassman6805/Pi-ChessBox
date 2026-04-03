@@ -704,6 +704,14 @@ void ControllerGUI::update(long ticks) {
                     }
                     m_pendingMoveStart = "";
 
+                } else if (action == "ready") {
+                    // Board setup complete - now safe to fire engine first move
+                    if (m_humanIsBlack && m_engineMoveRequested) {
+                        fprintf(stderr, "READY: board setup complete, firing engine\n");
+                        m_engineStartDelay = 0;
+                        m_uciClient->setPosition(m_board->getFen());
+                        m_uciClient->sendGo(m_uciClient->getMoveTime());
+                    }
                 } else if (action == "reset") {
                     fprintf(stderr, "RESET received from sim\n");
                     m_board->Forsyth("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -888,12 +896,12 @@ void ControllerGUI::newGame() {
     m_uciClient->setPosition(m_board->getFen());
     if (m_connector && m_connector->isConnected()) {
         try {
-            // Send setmode first so controller resets gameStarted flag
+            // Send setmode FIRST so boardFlipped is set before setPosition runs
             nlohmann::json jmode;
             jmode["action"] = "setmode";
             jmode["mode"] = m_humanIsBlack ? "playblack" : "play";
             m_connector->send((jmode.dump() + "\r\n").c_str());
-            // Then send setposition so it triggers setup check
+            // THEN setposition
             nlohmann::json jpos;
             jpos["action"] = "setposition";
             jpos["fen"] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -903,8 +911,8 @@ void ControllerGUI::newGame() {
     }
     if (m_humanIsBlack) {
         m_engineMoveRequested = true;
-        m_engineStartDelay = 500; // wait 500ms for Stockfish readyok before sending go
-        fprintf(stderr, "NEW GAME: human=black, engine will play white after delay\n");
+        m_engineStartDelay = 0; // engine fires only when controller sends "ready"
+        fprintf(stderr, "NEW GAME: human=black, waiting for board ready signal\n");
     } else {
         fprintf(stderr, "NEW GAME: human=white\n");
     }
