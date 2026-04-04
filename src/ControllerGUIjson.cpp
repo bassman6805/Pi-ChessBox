@@ -683,8 +683,10 @@ void ControllerGUI::update(long ticks) {
                                 }
                             } catch (...) {}
                             lockoutTimer = 800;
-                            // Send updated position to controller after human move
-                            if (m_connector && m_connector->isConnected()) {
+                            bool isCastle = (fullMove=="e1g1"||fullMove=="e1c1"||fullMove=="e8g8"||fullMove=="e8c8");
+                            if (isCastle) m_waitingForRook = true;
+                            // Send updated position to controller after human move (skip for castle)
+                            if (!m_waitingForRook && m_connector && m_connector->isConnected()) {
                                 try {
                                     nlohmann::json jp;
                                     jp["action"] = "setposition";
@@ -698,7 +700,7 @@ void ControllerGUI::update(long ticks) {
                                 m_engineMoveRequested = true;
                                 if (m_hintJustFired) { m_hintJustFired = false; m_uciClient->sendUCINewGame(); }
                                 m_uciClient->setPosition(m_board->getFen());
-                                m_uciClient->sendGo(1000);
+                                if (!m_waitingForRook) m_uciClient->sendGo(m_uciClient->getMoveTime());
                             }
                         }
                     }
@@ -707,6 +709,35 @@ void ControllerGUI::update(long ticks) {
                 } else if (action == "ready") {
                     // Board setup complete - now safe to fire engine first move
                     if (m_humanIsBlack && m_engineMoveRequested) {
+                        fprintf(stderr, "READY: board setup complete, firing engine\n");
+                        m_engineStartDelay = 0;
+                        m_uciClient->setPosition(m_board->getFen());
+                        m_uciClient->sendGo(m_uciClient->getMoveTime());
+                    }
+                } else if (action == "ready") {
+                    if (m_waitingForRook) {
+                        m_waitingForRook = false;
+                        fprintf(stderr, "READY: rook placed, sending deferred msgs\n");
+                        if (m_connector && m_connector->isConnected()) {
+                            try {
+                                nlohmann::json jpos;
+                                jpos["action"] = "setposition";
+                                jpos["fen"] = std::string(m_board->getFen());
+                                m_connector->send((jpos.dump() + "\r\n").c_str());
+                            } catch (...) {}
+                        }
+                        if (!m_pendingEngineMove.empty()) {
+                            nlohmann::json hint;
+                            hint["action"] = "hint";
+                            hint["from"] = m_pendingEngineMove.substr(0,2);
+                            hint["to"]   = m_pendingEngineMove.substr(2,2);
+                            simSend(hint);
+                        }
+                        if (m_engineMoveRequested && !m_gameOver) {
+                            m_uciClient->setPosition(m_board->getFen());
+                            m_uciClient->sendGo(m_uciClient->getMoveTime());
+                        }
+                    } else if (m_humanIsBlack && m_engineMoveRequested && !m_gameOver) {
                         fprintf(stderr, "READY: board setup complete, firing engine\n");
                         m_engineStartDelay = 0;
                         m_uciClient->setPosition(m_board->getFen());
@@ -824,15 +855,14 @@ void ControllerGUI::update(long ticks) {
                         simSend(nlohmann::json{{"action","flash"},{"on",false},{"squares",nlohmann::json::array()}});
                     }
                     {
-                        if (lastWasCastle) SDL_Delay(2000); // wait for rook LED before showing engine move
-                        fprintf(stderr, "ENGINE MOVE SEND: humanIsBlack=%d\n", m_humanIsBlack?1:0);
+                        fprintf(stderr, "ENGINE MOVE SEND: humanIsBlack=%d waitingForRook=%d\n", m_humanIsBlack?1:0, m_waitingForRook?1:0);
                         if (true) {  // always use hint for engine moves
                             nlohmann::json hint;
                             hint["action"] = "hint";
                             hint["from"] = moveStr.substr(0,2);
                             hint["to"]   = moveStr.substr(2,2);
                             fprintf(stderr, "ENGINE HINT: %s->%s\n", moveStr.substr(0,2).c_str(), moveStr.substr(2,2).c_str());
-                            simSend(hint);
+                            if (!m_waitingForRook) simSend(hint);
                         } else {
                             nlohmann::json mv;
                             mv["action"] = "move";
@@ -889,6 +919,7 @@ void ControllerGUI::newGame() {
     m_studyWaitingConfirm = false;
     m_hintMode = false;
     m_hintJustFired = false;
+    m_waitingForRook = false;
     m_syncTimer = 0;
     // m_twoPlayer and m_humanIsBlack are set by the caller before newGame()
     if (m_movesPanel) m_movesPanel->clear();
