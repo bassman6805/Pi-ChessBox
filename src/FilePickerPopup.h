@@ -29,6 +29,7 @@ private:
     std::string m_directory;
     std::vector<std::string> m_files;   // just filenames
     int m_scrollOffset;                 // first visible item index
+    int m_highlightedIndex;             // currently selected item (-1 = none)
     int m_screenW, m_screenH;
 
     int m_popupX, m_popupY, m_popupW, m_popupH;

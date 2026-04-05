@@ -6,7 +6,7 @@
 
 FilePickerPopup::FilePickerPopup(int screenW, int screenH, TTF_Font* font)
     : Component("filepickerpopup", 0, 0, screenW, screenH),
-      m_font(font), m_visible(false), m_scrollOffset(0),
+      m_font(font), m_visible(false), m_scrollOffset(0), m_highlightedIndex(-1),
       m_screenW(screenW), m_screenH(screenH) {
 
     m_padding  = 8;
@@ -36,6 +36,7 @@ void FilePickerPopup::show(const std::string& directory) {
     m_directory = directory;
     m_selectedFile = "";
     m_scrollOffset = 0;
+    m_highlightedIndex = -1;
     loadFiles();
     m_visible = true;
 }
@@ -116,20 +117,49 @@ void FilePickerPopup::draw(SDL_Renderer* renderer) {
         }
     }
 
-    // Scroll up button
-    int scrollBtnY = m_popupY + m_popupH - 48;
-    SDL_Rect upBtn   = {m_popupX + m_padding,                    scrollBtnY, (m_popupW - 3*m_padding)/2, 40};
-    SDL_Rect downBtn = {m_popupX + m_padding + upBtn.w + m_padding, scrollBtnY, upBtn.w, 40};
+    // Highlight selected item
+    if (m_highlightedIndex >= 0) {
+        int visIdx = m_highlightedIndex - m_scrollOffset;
+        if (visIdx >= 0 && visIdx < m_visibleRows) {
+            SDL_Rect btn = itemRect(visIdx);
+            SDL_SetRenderDrawColor(renderer, 102, 217, 0, 255);
+            SDL_RenderDrawRect(renderer, &btn);
+            SDL_SetRenderDrawColor(renderer, 40, 100, 40, 255);
+            SDL_RenderFillRect(renderer, &btn);
+            if (m_font) {
+                SDL_Color white = {255, 255, 255, 255};
+                std::string display = m_files[m_highlightedIndex];
+                if (display.size() > 40) display = display.substr(0, 37) + "...";
+                SDL_Surface* surf = TTF_RenderText_Blended(m_font, display.c_str(), white);
+                if (surf) {
+                    SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surf);
+                    if (tex) {
+                        int ty = btn.y + (btn.h - surf->h) / 2;
+                        SDL_Rect dst = {btn.x + 8, ty, std::min(surf->w, btn.w - 16), surf->h};
+                        SDL_RenderCopy(renderer, tex, nullptr, &dst);
+                        SDL_DestroyTexture(tex);
+                    }
+                    SDL_FreeSurface(surf);
+                }
+            }
+        }
+    }
 
-    SDL_SetRenderDrawColor(renderer, m_scrollOffset > 0 ? 80 : 50, 80, 80, 255);
-    SDL_RenderFillRect(renderer, &upBtn);
-    SDL_SetRenderDrawColor(renderer, 100, 120, 120, 255);
-    SDL_RenderDrawRect(renderer, &upBtn);
+    // Load and Cancel buttons
+    int btnRowY = m_popupY + m_popupH - 48;
+    SDL_Rect loadBtn   = {m_popupX + m_padding,                          btnRowY, (m_popupW - 3*m_padding)/2, 40};
+    SDL_Rect cancelBtn = {m_popupX + m_padding + loadBtn.w + m_padding,  btnRowY, loadBtn.w, 40};
 
-    SDL_SetRenderDrawColor(renderer, (m_scrollOffset + m_visibleRows < (int)m_files.size()) ? 80 : 50, 80, 80, 255);
-    SDL_RenderFillRect(renderer, &downBtn);
-    SDL_SetRenderDrawColor(renderer, 100, 120, 120, 255);
-    SDL_RenderDrawRect(renderer, &downBtn);
+    bool canLoad = (m_highlightedIndex >= 0 && m_highlightedIndex < (int)m_files.size());
+    SDL_SetRenderDrawColor(renderer, canLoad ? 40 : 30, canLoad ? 100 : 60, 40, 255);
+    SDL_RenderFillRect(renderer, &loadBtn);
+    SDL_SetRenderDrawColor(renderer, canLoad ? 102 : 60, canLoad ? 217 : 120, canLoad ? 0 : 60, 255);
+    SDL_RenderDrawRect(renderer, &loadBtn);
+
+    SDL_SetRenderDrawColor(renderer, 100, 40, 40, 255);
+    SDL_RenderFillRect(renderer, &cancelBtn);
+    SDL_SetRenderDrawColor(renderer, 200, 80, 80, 255);
+    SDL_RenderDrawRect(renderer, &cancelBtn);
 
     if (m_font) {
         SDL_Color white = {200, 200, 200, 255};
@@ -145,8 +175,8 @@ void FilePickerPopup::draw(SDL_Renderer* renderer) {
                 SDL_FreeSurface(s);
             }
         };
-        drawLabel(upBtn,   "^ Up");
-        drawLabel(downBtn, "Down v");
+        drawLabel(loadBtn,   "Load");
+        drawLabel(cancelBtn, "Cancel");
     }
 }
 
@@ -157,26 +187,31 @@ Component* FilePickerPopup::mouseEvent(SDL_Event* event) {
     int mx = event->button.x;
     int my = event->button.y;
 
-    // Scroll buttons
-    int scrollBtnY = m_popupY + m_popupH - 48;
-    SDL_Rect upBtn   = {m_popupX + m_padding,                          scrollBtnY, (m_popupW - 3*m_padding)/2, 40};
-    SDL_Rect downBtn = {m_popupX + m_padding + upBtn.w + m_padding,    scrollBtnY, upBtn.w, 40};
+    // Load / Cancel buttons
+    int btnRowY = m_popupY + m_popupH - 48;
+    SDL_Rect loadBtn   = {m_popupX + m_padding,                          btnRowY, (m_popupW - 3*m_padding)/2, 40};
+    SDL_Rect cancelBtn = {m_popupX + m_padding + loadBtn.w + m_padding,  btnRowY, loadBtn.w, 40};
 
-    if (mx >= upBtn.x && mx < upBtn.x + upBtn.w && my >= upBtn.y && my < upBtn.y + upBtn.h) {
-        scrollUp(); return this;
+    if (mx >= loadBtn.x && mx < loadBtn.x + loadBtn.w && my >= loadBtn.y && my < loadBtn.y + loadBtn.h) {
+        if (m_highlightedIndex >= 0 && m_highlightedIndex < (int)m_files.size()) {
+            m_selectedFile = m_directory + "/" + m_files[m_highlightedIndex];
+            m_visible = false;
+            return this;
+        }
+        return this; // tap Load with nothing selected — stay open
     }
-    if (mx >= downBtn.x && mx < downBtn.x + downBtn.w && my >= downBtn.y && my < downBtn.y + downBtn.h) {
-        scrollDown(); return this;
+    if (mx >= cancelBtn.x && mx < cancelBtn.x + cancelBtn.w && my >= cancelBtn.y && my < cancelBtn.y + cancelBtn.h) {
+        m_visible = false;
+        return this;
     }
 
-    // File items
+    // File items — tap to highlight
     for (int i = 0; i < m_visibleRows; i++) {
         int fileIdx = m_scrollOffset + i;
         if (fileIdx >= (int)m_files.size()) break;
         SDL_Rect btn = itemRect(i);
         if (mx >= btn.x && mx < btn.x + btn.w && my >= btn.y && my < btn.y + btn.h) {
-            m_selectedFile = m_directory + "/" + m_files[fileIdx];
-            m_visible = false;
+            m_highlightedIndex = fileIdx;
             return this;
         }
     }
