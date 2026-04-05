@@ -475,6 +475,16 @@ void ControllerGUI::update(long ticks) {
                         if (lan=="e1g1"||lan=="e1c1"||lan=="e8g8"||lan=="e8c8"||
                             lan=="d1b1"||lan=="d1f1"||lan=="d8b8"||lan=="d8f8") m_waitingForRook = true;
                         fprintf(stderr, "HUMAN MOVE: %s sent, requesting engine move waitingForRook=%d\n", lan.c_str(), m_waitingForRook?1:0);
+                        // Send updated position to controller after HW move
+                        if (!m_waitingForRook && m_connector && m_connector->isConnected()) {
+                            try {
+                                nlohmann::json jp;
+                                jp["action"] = "setposition";
+                                jp["fen"] = std::string(m_board->getFen());
+                                m_connector->send((jp.dump() + "\r\n").c_str());
+                                fprintf(stderr, "HW POST-MOVE SETPOSITION: %s\n", m_board->getFen());
+                            } catch (...) {}
+                        }
                         if (!m_twoPlayer && isEngineToMove()) {
                             m_engineMoveRequested = true;
                             if (m_hintJustFired) { m_hintJustFired = false; m_uciClient->sendUCINewGame(); }

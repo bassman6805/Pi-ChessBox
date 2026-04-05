@@ -785,6 +785,9 @@ public:
                     } else if(isBlackPiece) {
                         // Human black move - show legal destinations
                         canMove = showValidSquares(chessI);
+                    } else if(isWhitePiece && rules.WhiteToPlay()) {
+                        // Two player: white piece picked up on white's turn
+                        canMove = showValidSquares(chessI);
                     }
                     if(canMove) {
                         moveType[moveIndex] = MOVE_UP;
