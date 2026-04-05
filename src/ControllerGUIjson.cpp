@@ -1247,7 +1247,7 @@ void ControllerGUI::exportPGN() {
     time_t now = time(nullptr);
     struct tm* t = localtime(&now);
     char filename[64];
-    strftime(filename, sizeof(filename), "game_%Y%m%d_%H%M%S.pgn", t);
+    strftime(filename, sizeof(filename), "/home/pi/chessbox/games/game_%Y%m%d_%H%M%S.pgn", t);
 
     char dateStr[16];
     strftime(dateStr, sizeof(dateStr), "%Y.%m.%d", t);
