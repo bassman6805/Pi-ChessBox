@@ -55,6 +55,7 @@ set(CONTROLLER_SOURCES
     src/TextField.cpp
     src/FontManager.cpp
     src/Window.cpp
+    src/FilePickerPopup.cpp
     src/ControllerGUIjson.cpp
     src/Prefs.cpp
 )

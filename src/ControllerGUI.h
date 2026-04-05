@@ -9,6 +9,7 @@
 #include "TimePopup.h"
 #include "PGNLoader.h"
 #include "MenuPopup.h"
+#include "FilePickerPopup.h"
 #include "Connector.h"
 #include <SDL_ttf.h>
 #include <string>
@@ -26,6 +27,7 @@ public:
     void exportPGN();
     void undoLastTwoMoves();
     void loadPGN();
+    void loadPGNFile(const std::string& path);
     void studyStep(int delta);
     void newGame();
     std::string simSq(const std::string& sq) const;
@@ -47,6 +49,7 @@ private:
     DepthPopup* m_depthPopup;
     TimePopup*  m_timePopup;
     MenuPopup*  m_menuPopup;
+    FilePickerPopup* m_filePickerPopup;
     TTF_Font* m_font = nullptr;
     std::string m_pendingMoveStart;
     std::string m_pendingEngineMove;

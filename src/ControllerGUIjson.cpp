@@ -42,7 +42,8 @@ ControllerGUI::ControllerGUI(bool isServer, const char* host, int port, const ch
     addComponent(m_movesPanel);
     
     m_connector = new Connector();
-    m_pendingMoveStart = ""; 
+    m_pendingMoveStart = "";
+    m_filePickerPopup = new FilePickerPopup(480, 800, nullptr); 
 }
 
 ControllerGUI::~ControllerGUI() {
@@ -54,6 +55,7 @@ ControllerGUI::~ControllerGUI() {
     delete m_menuPopup;
     delete m_uciClient;
     delete m_connector;
+    delete m_filePickerPopup;
 }
 
 void ControllerGUI::initComponents() {
@@ -64,6 +66,7 @@ void ControllerGUI::initComponents() {
     if (m_depthPopup && m_font) m_depthPopup->setFont(m_font);
     if (m_timePopup  && m_font) m_timePopup->setFont(m_font);
     if (m_menuPopup  && m_font) m_menuPopup->setFont(m_font);
+    if (m_filePickerPopup && m_font) m_filePickerPopup->setFont(m_font);
 
     // Asset path - works on both Windows and Pi
 #ifdef _WIN32
@@ -1110,21 +1113,10 @@ void ControllerGUI::undoLastTwoMoves() {
 }
 
 void ControllerGUI::loadPGN() {
-#ifdef _WIN32
-    char filename[MAX_PATH] = {};
-    OPENFILENAMEA ofn = {};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.lpstrFilter = "PGN Files\0*.pgn\0All Files\0*.*\0";
-    ofn.lpstrFile   = filename;
-    ofn.nMaxFile    = MAX_PATH;
-    ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-    ofn.lpstrTitle  = "Load PGN File";
-    if (!GetOpenFileNameA(&ofn)) return; // cancelled
-    std::string path(filename);
-#else
-    // On non-Windows just use a hardcoded path for now
-    std::string path = "game.pgn";
-#endif
+    if (m_filePickerPopup) m_filePickerPopup->show("/home/pi/chessbox/games");
+}
+
+void ControllerGUI::loadPGNFile(const std::string& path) {
 
     if (!m_pgnLoader.loadFile(path)) {
         fprintf(stderr, "STUDY: failed to load %s\n", path.c_str());
@@ -1211,16 +1203,22 @@ void ControllerGUI::studyStep(int delta) {
             // Actually sim doesn't support full position reset easily
             // Best approach: send moves from start
             // But sim board may be out of sync — for now just send the last move
+            // Send current board position to controller
+            nlohmann::json jpos;
+            jpos["action"] = "setposition";
+            jpos["fen"] = m_studyFens[m_studyIndex];
+            m_connector->send((jpos.dump() + "\r\n").c_str());
             if (m_studyIndex > 0 && m_studyIndex - 1 < (int)m_studyLanMoves.size()) {
                 const std::string& lan = m_studyLanMoves[m_studyIndex - 1];
-                simSend(nlohmann::json{{"action","move"},{"lan",lan}});
-                // Highlight last move squares
-                simSend(nlohmann::json{{"action","highlight"},{"color","green"},
-                    {"squares",nlohmann::json::array({lan.substr(0,2), lan.substr(2,2)})}
-                });
+                // Light from/to LEDs for the move just played
+                nlohmann::json hint;
+                hint["action"] = "hint";
+                hint["from"] = lan.substr(0, 2);
+                hint["to"]   = lan.substr(2, 2);
+                simSend(hint);
             } else {
-                // At start position — clear all highlights
-                simSend(nlohmann::json{{"action","highlight"},{"color","green"},{"squares",nlohmann::json::array()}});
+                // At start position — clear all LEDs
+                simSend(nlohmann::json{{"action","flash"},{"on",false},{"squares",nlohmann::json::array()}});
             }
         } catch (...) {}
     }
@@ -1307,7 +1305,7 @@ void ControllerGUI::processButtonClicked(Button* b) {
         // Tell cbcontroller to enter play mode so LEDs work
         try { m_connector->send("{\"action\":\"setmode\",\"mode\":\"play\"}\n"); } catch (...) {}
     }
-    if (b->id() == "Load")   { loadPGN(); return; }
+    if (b->id() == "Load")   { if (m_filePickerPopup) m_filePickerPopup->show("/home/pi/chessbox/games"); return; }
     if (b->id() == "Export") exportPGN();
     if (b->id() == "<")  { studyStep(-1); return; }
     if (b->id() == ">")  { studyStep(+1); return; }
@@ -1331,6 +1329,17 @@ void ControllerGUI::processButtonClicked(Button* b) {
 
 Component* ControllerGUI::mouseEvent(SDL_Event* event) {
     // Popups intercept all clicks when visible
+    if (m_filePickerPopup && m_filePickerPopup->isVisible()) {
+        Component* caught = m_filePickerPopup->mouseEvent(event);
+        if (caught) {
+            std::string sel = m_filePickerPopup->getSelectedFile();
+            if (!sel.empty()) {
+                m_filePickerPopup->clearSelection();
+                loadPGNFile(sel);
+            }
+        }
+        return caught;
+    }
     if (m_menuPopup && m_menuPopup->isVisible()) {
         Component* caught = m_menuPopup->mouseEvent(event);
         if (caught) {
@@ -1432,6 +1441,8 @@ void ControllerGUI::draw(SDL_Renderer* renderer) {
     // Draw popups on top of everything
     if (m_menuPopup  && m_menuPopup->isVisible())
         m_menuPopup->draw(renderer);
+    if (m_filePickerPopup && m_filePickerPopup->isVisible())
+        m_filePickerPopup->draw(renderer);
     if (m_levelPopup && m_levelPopup->isVisible())
         m_levelPopup->draw(renderer);
     if (m_depthPopup && m_depthPopup->isVisible())
