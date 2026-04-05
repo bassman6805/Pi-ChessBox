@@ -192,6 +192,7 @@ static std::string mirrorFen(const std::string& fen) {
 void ControllerGUI::update(long ticks) {
     Window::update(ticks);
     if (m_menuPopup) m_menuPopup->update(ticks);
+    if (m_filePickerPopup) m_filePickerPopup->update(ticks);
 
     static long lockoutTimer = 0;
     if (lockoutTimer > 0) { lockoutTimer -= ticks; if (lockoutTimer < 0) lockoutTimer = 0; }
@@ -1329,7 +1330,7 @@ void ControllerGUI::processButtonClicked(Button* b) {
 
 Component* ControllerGUI::mouseEvent(SDL_Event* event) {
     // Popups intercept all clicks when visible
-    if (m_filePickerPopup && m_filePickerPopup->isVisible()) {
+    if (m_filePickerPopup && m_filePickerPopup->isVisible() && !m_filePickerPopup->isClosing()) {
         Component* caught = m_filePickerPopup->mouseEvent(event);
         if (caught) {
             std::string sel = m_filePickerPopup->getSelectedFile();
