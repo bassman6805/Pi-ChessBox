@@ -359,6 +359,37 @@ void ControllerGUI::update(long ticks) {
                 if (action == "move" && msg.contains("moves") && msg["moves"].is_array() && !msg["moves"].empty()) {
                     std::string lan  = msg["moves"][0].value("lan", "");
                     std::string from = msg["moves"][0].value("from", "");
+                    // Check if this is castle rook completion
+                    // Accept any castle rook move (coordinates vary by orientation)
+                    bool isCastleRookMove = m_waitingForRook && (
+                        lan=="h1f1"||lan=="a1d1"||  // white kingside/queenside
+                        lan=="h8f8"||lan=="a8d8"||  // black kingside/queenside (normal)
+                        lan=="a8c8"||lan=="h8d8"    // black kingside/queenside (flipped coords)
+                    );
+                    if (isCastleRookMove) {
+                        fprintf(stderr, "CASTLE ROOK MOVE confirmed: %s\n", lan.c_str());
+                        m_waitingForRook = false;
+                        if (m_connector && m_connector->isConnected()) {
+                            try {
+                                nlohmann::json jpos;
+                                jpos["action"] = "setposition";
+                                jpos["fen"] = std::string(m_board->getFen());
+                                m_connector->send((jpos.dump() + "\r\n").c_str());
+                            } catch (...) {}
+                        }
+                        if (!m_pendingEngineMove.empty()) {
+                            nlohmann::json hint;
+                            hint["action"] = "hint";
+                            hint["from"] = m_pendingEngineMove.substr(0,2);
+                            hint["to"]   = m_pendingEngineMove.substr(2,2);
+                            simSend(hint);
+                        }
+                        if (m_engineMoveRequested && !m_gameOver) {
+                            m_uciClient->setPosition(m_board->getFen());
+                            m_uciClient->sendGo(m_uciClient->getMoveTime());
+                        }
+                        continue;
+                    }
                     fprintf(stderr, "HW MOVE CHECK: lan=%s engineToMove=%d lockout=%ld\n", lan.c_str(), isEngineToMove()?1:0, lockoutTimer);
                     // Check if this is physical confirmation of engine move
                     fprintf(stderr, "HW MOVE pending=[%s] lan=[%s] match=%d\n", m_pendingEngineMove.c_str(), lan.c_str(), (lan==m_pendingEngineMove)?1:0);
@@ -436,12 +467,15 @@ void ControllerGUI::update(long ticks) {
                         m_pendingMoveStart = "";
                         lockoutTimer = 800;
                         m_lastHumanMove = lan;
-                        fprintf(stderr, "HUMAN MOVE: %s sent, requesting engine move\n", lan.c_str());
+                        // Detect castle by king LAN (normal and flipped board coordinates)
+                        if (lan=="e1g1"||lan=="e1c1"||lan=="e8g8"||lan=="e8c8"||
+                            lan=="d1b1"||lan=="d1f1"||lan=="d8b8"||lan=="d8f8") m_waitingForRook = true;
+                        fprintf(stderr, "HUMAN MOVE: %s sent, requesting engine move waitingForRook=%d\n", lan.c_str(), m_waitingForRook?1:0);
                         if (!m_twoPlayer && isEngineToMove()) {
                             m_engineMoveRequested = true;
                             if (m_hintJustFired) { m_hintJustFired = false; m_uciClient->sendUCINewGame(); }
                             m_uciClient->setPosition(m_board->getFen());
-                            m_uciClient->sendGo(m_uciClient->getMoveTime());
+                            if (!m_waitingForRook) m_uciClient->sendGo(m_uciClient->getMoveTime());
                         }
                     }
                     break; // processed HW move, exit loop for this tick
@@ -707,12 +741,60 @@ void ControllerGUI::update(long ticks) {
                     m_pendingMoveStart = "";
 
                 } else if (action == "ready") {
-                    // Board setup complete - now safe to fire engine first move
-                    if (m_humanIsBlack && m_engineMoveRequested) {
+                    if (m_waitingForRook && m_engineMoveRequested && !m_gameOver) {
+                        // Castle rook placed - fire engine
+                        m_waitingForRook = false;
+                        fprintf(stderr, "READY: castle rook placed, firing engine\n");
+                        if (m_connector && m_connector->isConnected()) {
+                            try {
+                                nlohmann::json jpos;
+                                jpos["action"] = "setposition";
+                                jpos["fen"] = std::string(m_board->getFen());
+                                m_connector->send((jpos.dump() + "\r\n").c_str());
+                            } catch (...) {}
+                        }
+                        if (!m_pendingEngineMove.empty()) {
+                            nlohmann::json hint;
+                            hint["action"] = "hint";
+                            hint["from"] = m_pendingEngineMove.substr(0,2);
+                            hint["to"]   = m_pendingEngineMove.substr(2,2);
+                            simSend(hint);
+                        }
+                        m_uciClient->setPosition(m_board->getFen());
+                        m_uciClient->sendGo(m_uciClient->getMoveTime());
+                    } else if (m_humanIsBlack && m_engineMoveRequested && !m_gameOver) {
+                        // Board setup complete for new game as black
                         fprintf(stderr, "READY: board setup complete, firing engine\n");
                         m_engineStartDelay = 0;
                         m_uciClient->setPosition(m_board->getFen());
                         m_uciClient->sendGo(m_uciClient->getMoveTime());
+                    }
+                } else if (action == "move" && m_waitingForRook &&
+                               msg.contains("moves") && msg["moves"].is_array() && !msg["moves"].empty()) {
+                    // Castle rook move confirmation - treat same as "ready"
+                    std::string rookLan = msg["moves"][0].value("lan","");
+                    if (rookLan=="h1f1"||rookLan=="a1d1"||rookLan=="h8f8"||rookLan=="a8d8") {
+                        fprintf(stderr, "CASTLE ROOK MOVE: %s - treating as ready\n", rookLan.c_str());
+                        m_waitingForRook = false;
+                        if (m_connector && m_connector->isConnected()) {
+                            try {
+                                nlohmann::json jpos;
+                                jpos["action"] = "setposition";
+                                jpos["fen"] = std::string(m_board->getFen());
+                                m_connector->send((jpos.dump() + "\r\n").c_str());
+                            } catch (...) {}
+                        }
+                        if (!m_pendingEngineMove.empty()) {
+                            nlohmann::json hint;
+                            hint["action"] = "hint";
+                            hint["from"] = m_pendingEngineMove.substr(0,2);
+                            hint["to"]   = m_pendingEngineMove.substr(2,2);
+                            simSend(hint);
+                        }
+                        if (m_engineMoveRequested && !m_gameOver) {
+                            m_uciClient->setPosition(m_board->getFen());
+                            m_uciClient->sendGo(m_uciClient->getMoveTime());
+                        }
                     }
                 } else if (action == "ready") {
                     if (m_waitingForRook) {
@@ -808,7 +890,7 @@ void ControllerGUI::update(long ticks) {
     }
 
     // --- ENGINE MOVE LOGIC ---
-    if (m_board && isEngineToMove() && m_uciClient->hasNewMove() && m_engineMoveRequested) {
+    if (m_board && isEngineToMove() && m_uciClient->hasNewMove() && m_engineMoveRequested && !m_waitingForRook) {
         std::string moveStr = m_uciClient->getAndClearMove();
         thc::Move mv;
         if (mv.TerseIn(&m_board->getRules(), moveStr.c_str())) {
@@ -827,15 +909,19 @@ void ControllerGUI::update(long ticks) {
             fprintf(stderr, "ENGINE MOVE: %s applied, waiting for physical confirmation\n", moveStr.c_str());
             bool lastWasCastle = (m_lastHumanMove=="e1g1"||m_lastHumanMove=="e1c1"||m_lastHumanMove=="e8g8"||m_lastHumanMove=="e8c8");
             m_lastHumanMove = "";
-            // Always send setposition so controller knows current position
-            try {
-                nlohmann::json jpos;
-                jpos["action"] = "setposition";
-                jpos["fen"] = std::string(m_board->getFen());
-                std::string sp = jpos.dump() + "\r\n";
-                m_connector->send(sp.c_str());
-                fprintf(stderr, "SETPOSITION sent: %s\n", m_board->getFen());
-            } catch (...) { fprintf(stderr, "SETPOSITION send failed\n"); }
+            // Send setposition so controller knows current position (skip during castle rook pending)
+            if (!m_waitingForRook) {
+                try {
+                    nlohmann::json jpos;
+                    jpos["action"] = "setposition";
+                    jpos["fen"] = std::string(m_board->getFen());
+                    std::string sp = jpos.dump() + "\r\n";
+                    m_connector->send(sp.c_str());
+                    fprintf(stderr, "SETPOSITION sent: %s\n", m_board->getFen());
+                } catch (...) { fprintf(stderr, "SETPOSITION send failed\n"); }
+            } else {
+                fprintf(stderr, "SETPOSITION skipped: waiting for castle rook\n");
+            }
             if (m_connector && m_connector->isConnected()) {
                 try {
                     if (m_board->isCheckmate()) {
