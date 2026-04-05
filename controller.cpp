@@ -291,8 +291,8 @@ public:
         int toIdx = toIndex(to.c_str());
         printf("TAKEBACK: fromIdx=%d toIdx=%d\n", fromIdx, toIdx);
         clearLeds();
-        led(fromIdx, LED_ON);
-        led(toIdx, LED_ON);
+        led(ledIndex(fromIdx), LED_ON);
+        led(ledIndex(toIdx), LED_ON);
         printf("TAKEBACK: LEDs set, setting MODE_MOVE\n");
         waitMove.setFrom(fromIdx);
         waitMove.setTo(toIdx);
