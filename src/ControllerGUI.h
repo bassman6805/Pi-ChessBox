@@ -10,6 +10,7 @@
 #include "PGNLoader.h"
 #include "MenuPopup.h"
 #include "FilePickerPopup.h"
+#include "ClockPopup.h"
 #include "Connector.h"
 #include <SDL_ttf.h>
 #include <string>
@@ -50,6 +51,7 @@ private:
     TimePopup*  m_timePopup;
     MenuPopup*  m_menuPopup;
     FilePickerPopup* m_filePickerPopup;
+    ClockPopup*      m_clockPopup;
     TTF_Font* m_font = nullptr;
     std::string m_pendingMoveStart;
     std::string m_pendingEngineMove;
@@ -104,6 +106,7 @@ private:
 
     // Chess clock
     bool  m_clockEnabled = true;
+    int   m_clockPresetIndex = 3;   // default 10+5
     bool  m_clockRunning = false;
     int   m_clockIncrement = 5;      // seconds added per move
     long  m_whiteTimeMs = 10*60*1000; // 10 minutes in ms

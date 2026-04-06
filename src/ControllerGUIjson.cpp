@@ -43,7 +43,8 @@ ControllerGUI::ControllerGUI(bool isServer, const char* host, int port, const ch
     
     m_connector = new Connector();
     m_pendingMoveStart = "";
-    m_filePickerPopup = new FilePickerPopup(480, 800, nullptr); 
+    m_filePickerPopup = new FilePickerPopup(480, 800, nullptr);
+    m_clockPopup = new ClockPopup(480, 800, nullptr); 
 }
 
 ControllerGUI::~ControllerGUI() {
@@ -56,6 +57,7 @@ ControllerGUI::~ControllerGUI() {
     delete m_uciClient;
     delete m_connector;
     delete m_filePickerPopup;
+    delete m_clockPopup;
 }
 
 void ControllerGUI::initComponents() {
@@ -67,6 +69,7 @@ void ControllerGUI::initComponents() {
     if (m_timePopup  && m_font) m_timePopup->setFont(m_font);
     if (m_menuPopup  && m_font) m_menuPopup->setFont(m_font);
     if (m_filePickerPopup && m_font) m_filePickerPopup->setFont(m_font);
+    if (m_clockPopup      && m_font) m_clockPopup->setFont(m_font);
 
     // Asset path - works on both Windows and Pi
 #ifdef _WIN32
@@ -1342,6 +1345,7 @@ void ControllerGUI::processButtonClicked(Button* b) {
     }
     if (b->id() == "Load")   { if (m_filePickerPopup) m_filePickerPopup->show("/home/pi/chessbox/games"); return; }
     if (b->id() == "Export") exportPGN();
+    if (b->id() == "Clock")  { if (m_clockPopup) m_clockPopup->show(m_clockPresetIndex); return; }
     if (b->id() == "<")  { studyStep(-1); return; }
     if (b->id() == ">")  { studyStep(+1); return; }
     if (b->id() == "<<") { studyStep(INT_MIN); return; }
@@ -1364,6 +1368,29 @@ void ControllerGUI::processButtonClicked(Button* b) {
 
 Component* ControllerGUI::mouseEvent(SDL_Event* event) {
     // Popups intercept all clicks when visible
+    if (m_clockPopup && m_clockPopup->isVisible()) {
+        Component* caught = m_clockPopup->mouseEvent(event);
+        if (caught) {
+            int sel = m_clockPopup->getSelectedIndex();
+            if (sel >= 0) {
+                m_clockPopup->clearSelection();
+                m_clockPresetIndex = sel;
+                int newTimeMs = ClockPopup::presetTimeMs(sel);
+                m_clockIncrement  = ClockPopup::presetIncrementSec(sel);
+                if (newTimeMs == 0) {
+                    m_clockEnabled = false;
+                } else {
+                    m_clockEnabled = true;
+                    m_whiteTimeMs  = newTimeMs;
+                    m_blackTimeMs  = newTimeMs;
+                    clockReset();
+                    m_whiteTimeMs  = newTimeMs;
+                    m_blackTimeMs  = newTimeMs;
+                }
+            }
+        }
+        return caught;
+    }
     if (m_filePickerPopup && m_filePickerPopup->isVisible() && !m_filePickerPopup->isClosing()) {
         Component* caught = m_filePickerPopup->mouseEvent(event);
         if (caught) {
@@ -1478,7 +1505,8 @@ void ControllerGUI::draw(SDL_Renderer* renderer) {
         m_menuPopup->draw(renderer);
     if (m_filePickerPopup && m_filePickerPopup->isVisible())
         m_filePickerPopup->draw(renderer);
-    if (m_clockEnabled) drawClock(renderer);
+    if (m_clockEnabled && !(m_menuPopup && m_menuPopup->isVisible())) drawClock(renderer);
+    if (m_clockPopup && m_clockPopup->isVisible()) m_clockPopup->draw(renderer);
     if (m_levelPopup && m_levelPopup->isVisible())
         m_levelPopup->draw(renderer);
     if (m_depthPopup && m_depthPopup->isVisible())

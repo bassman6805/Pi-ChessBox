@@ -33,7 +33,7 @@ public:
         clearButtons();
         m_items = {
             levelLabel, backLabel, depthLabel, timeLabel,
-            "Load",     "Export",  "DB",       "Inspect",
+            "Load",     "Export",  "Clock",    "Inspect",
             "Mark",     "W_P",    "B_P",      "WB_P",
             "BB_P"
         };
