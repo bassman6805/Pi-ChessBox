@@ -32,7 +32,7 @@ ControllerGUI::ControllerGUI(bool isServer, const char* host, int port, const ch
 
     // 2. Components
     m_board = new Board(0, 0, 480, 480);
-    m_movesPanel = new MovesPanel("moves", 0, 480, 480, 256, nullptr);
+    m_movesPanel = new MovesPanel("moves", 0, 514, 480, 222, nullptr);
     m_levelPopup = new LevelPopup(480, 800, nullptr);
     m_depthPopup = new DepthPopup(480, 800, nullptr);
     m_timePopup  = new TimePopup(480, 800, nullptr);
@@ -193,6 +193,16 @@ void ControllerGUI::update(long ticks) {
     Window::update(ticks);
     if (m_menuPopup) m_menuPopup->update(ticks);
     if (m_filePickerPopup) m_filePickerPopup->update(ticks);
+    // Chess clock tick
+    if (m_clockEnabled && m_clockRunning) {
+        if (m_whiteTicking) {
+            m_whiteTimeMs -= ticks;
+            if (m_whiteTimeMs < 0) m_whiteTimeMs = 0;
+        } else {
+            m_blackTimeMs -= ticks;
+            if (m_blackTimeMs < 0) m_blackTimeMs = 0;
+        }
+    }
 
     static long lockoutTimer = 0;
     if (lockoutTimer > 0) { lockoutTimer -= ticks; if (lockoutTimer < 0) lockoutTimer = 0; }
@@ -373,6 +383,10 @@ void ControllerGUI::update(long ticks) {
                     if (isCastleRookMove) {
                         fprintf(stderr, "CASTLE ROOK MOVE confirmed: %s\n", lan.c_str());
                         m_waitingForRook = false;
+    // Reset and start clock
+    clockReset();
+    m_clockRunning = true;
+    m_whiteTicking = true;
                         if (m_connector && m_connector->isConnected()) {
                             try {
                                 nlohmann::json jpos;
@@ -401,6 +415,11 @@ void ControllerGUI::update(long ticks) {
                     std::string flippedPending = m_humanIsBlack ? simLan(m_pendingEngineMove) : m_pendingEngineMove;
                     if (!lan.empty() && !m_pendingEngineMove.empty() && (lan == m_pendingEngineMove || lan == flippedPending)) {
                         fprintf(stderr, "ENGINE MOVE CONFIRMED physically via HW move: %s\n", lan.c_str());
+                        // Switch clock after engine move confirmed
+                        if (m_clockEnabled && m_clockRunning) {
+                            m_whiteTimeMs += m_clockIncrement*1000;
+                            m_whiteTicking = false; // human (black) to move
+                        }
                         m_pendingEngineMove = "";
                         m_board->clearHighlights();
                         lockoutTimer = 0;
@@ -471,6 +490,11 @@ void ControllerGUI::update(long ticks) {
                         m_pendingMoveStart = "";
                         lockoutTimer = 800;
                         m_lastHumanMove = lan;
+                        // Switch clock after human move
+                        if (m_clockEnabled && m_clockRunning) {
+                            if (m_whiteTicking) { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = false; }
+                            else                { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                        }
                         // Detect castle by king LAN (normal and flipped board coordinates)
                         if (lan=="e1g1"||lan=="e1c1"||lan=="e8g8"||lan=="e8c8"||
                             lan=="d1b1"||lan=="d1f1"||lan=="d8b8"||lan=="d8f8") m_waitingForRook = true;
@@ -1454,6 +1478,7 @@ void ControllerGUI::draw(SDL_Renderer* renderer) {
         m_menuPopup->draw(renderer);
     if (m_filePickerPopup && m_filePickerPopup->isVisible())
         m_filePickerPopup->draw(renderer);
+    if (m_clockEnabled) drawClock(renderer);
     if (m_levelPopup && m_levelPopup->isVisible())
         m_levelPopup->draw(renderer);
     if (m_depthPopup && m_depthPopup->isVisible())
@@ -1492,3 +1517,71 @@ void ControllerGUI::startGame() {
         SDL_Delay(16);
     }
 }
+void ControllerGUI::clockReset() {
+    m_whiteTimeMs = 10 * 60 * 1000;
+    m_blackTimeMs = 10 * 60 * 1000;
+    m_whiteTicking = true;
+    m_clockRunning = false;
+}
+
+void ControllerGUI::clockStop()       { m_clockRunning = false; }
+void ControllerGUI::clockStartWhite() { m_whiteTicking = true;  m_clockRunning = true; }
+void ControllerGUI::clockStartBlack() { m_whiteTicking = false; m_clockRunning = true; }
+
+void ControllerGUI::drawClock(SDL_Renderer* renderer) {
+    if (!m_font) return;
+
+    auto formatTime = [](long ms) -> std::string {
+        if (ms < 0) ms = 0;
+        int total = (int)(ms / 1000);
+        int mins  = total / 60;
+        int secs  = total % 60;
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d", mins, secs);
+        return std::string(buf);
+    };
+
+    // Clock bar between board (y=480) and moves panel
+    // Two side-by-side boxes spanning full width
+    int barY = 481;
+    int barH = 30;
+    int half = 240;
+
+    SDL_Rect blackBox = {0,    barY, half,      barH};
+    SDL_Rect whiteBox = {half, barY, 480-half,  barH};
+
+    bool blackActive = m_clockRunning && !m_whiteTicking;
+    bool whiteActive = m_clockRunning && m_whiteTicking;
+
+    // Black clock (left)
+    SDL_SetRenderDrawColor(renderer, blackActive ? 0 : 15, blackActive ? 110 : 25, blackActive ? 175 : 40, 255);
+    SDL_RenderFillRect(renderer, &blackBox);
+    SDL_SetRenderDrawColor(renderer, blackActive ? 180 : 60, blackActive ? 230 : 90, blackActive ? 0 : 90, 255);
+    SDL_RenderDrawRect(renderer, &blackBox);
+
+    // White clock (right)
+    SDL_SetRenderDrawColor(renderer, whiteActive ? 0 : 15, whiteActive ? 110 : 25, whiteActive ? 175 : 40, 255);
+    SDL_RenderFillRect(renderer, &whiteBox);
+    SDL_SetRenderDrawColor(renderer, whiteActive ? 180 : 60, whiteActive ? 230 : 90, whiteActive ? 0 : 90, 255);
+    SDL_RenderDrawRect(renderer, &whiteBox);
+
+    // Labels
+    auto drawText = [&](SDL_Rect& r, const std::string& txt, SDL_Color col) {
+        SDL_Surface* s = TTF_RenderText_Blended(m_font, txt.c_str(), col);
+        if (!s) return;
+        SDL_Texture* t = SDL_CreateTextureFromSurface(renderer, s);
+        if (t) {
+            SDL_Rect d = {r.x + (r.w - s->w)/2, r.y + (r.h - s->h)/2, s->w, s->h};
+            SDL_RenderCopy(renderer, t, nullptr, &d);
+            SDL_DestroyTexture(t);
+        }
+        SDL_FreeSurface(s);
+    };
+
+    SDL_Color white = {220, 235, 255, 255};
+    SDL_Color warn  = {255, 80,  80,  255};
+
+    drawText(blackBox, "B " + formatTime(m_blackTimeMs), m_blackTimeMs < 30000 ? warn : white);
+    drawText(whiteBox, "W " + formatTime(m_whiteTimeMs), m_whiteTimeMs < 30000 ? warn : white);
+}
+

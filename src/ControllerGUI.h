@@ -101,6 +101,19 @@ private:
     bool m_isMirroring = false;
     bool m_running;
     bool m_waitingForRook = false;
+
+    // Chess clock
+    bool  m_clockEnabled = true;
+    bool  m_clockRunning = false;
+    int   m_clockIncrement = 5;      // seconds added per move
+    long  m_whiteTimeMs = 10*60*1000; // 10 minutes in ms
+    long  m_blackTimeMs = 10*60*1000;
+    bool  m_whiteTicking = true;     // true = white's clock running
+    void  drawClock(SDL_Renderer* renderer);
+    void  clockStartWhite();
+    void  clockStartBlack();
+    void  clockStop();
+    void  clockReset();
     UCIClient* m_uciClient;
 };
 
