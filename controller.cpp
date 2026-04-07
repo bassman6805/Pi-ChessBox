@@ -98,6 +98,7 @@ public:
     int gameMode;
     bool boardFlipped = false;
     bool pendingEngineMove = false;  // true when waiting for white move confirmation
+    int checkFlashLed = -1;  // LED index of king in check (-1 = none)
     int flashState=0;
     ChessMove waitMove;         ///< The move the board is waiting for the player to complete.
     char moveType[4]= {'_','_','_','_'};
@@ -230,6 +231,9 @@ public:
                 } else if(!action.compare("hint")) {
                     setHint(j, jresult);
                     psocket->println(jresult.dump().c_str());
+                } else if(!action.compare("flash")) {
+                    setFlash(j, jresult);
+                    psocket->println(jresult.dump().c_str());
                 } else if(!action.compare("takeback")) {
                     setTakeback(j, jresult);
                     psocket->println(jresult.dump().c_str());
@@ -258,10 +262,26 @@ public:
         led(physIndex(index),ledState[physIndex(index)]?LED_OFF:LED_ON); //flip from on to off and off to on
     }
 
+    void setFlash(json& j, json& jresult) {
+        jresult["success"] = true;
+        bool on = j.contains("on") && j["on"].get<bool>();
+        checkFlashLed = -1;
+        clearLeds();
+        if (on && j.contains("squares") && j["squares"].is_array()) {
+            for (auto& sq : j["squares"]) {
+                std::string square = sq.get<std::string>();
+                int idx = toIndex(square.c_str());
+                checkFlashLed = ledIndex(idx);
+                printf("FLASH square=%s index=%d ledIndex=%d\n", square.c_str(), idx, checkFlashLed);
+                led(checkFlashLed, LED_FLASH);
+            }
+        }
+    }
     void setHint(json& j, json& jresult) {
         jresult["success"] = true;
         pendingEngineMove = boardFlipped;  // when playing black, hint = engine move to confirm
         clearLeds();
+        if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
         if (j.contains("from")) {
             string from = j["from"];
             int idx = toIndex(from.c_str());
@@ -566,6 +586,7 @@ public:
         unsigned int len = moves.size();
         int validMoves=0;
         clearLeds();
+        if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
         led(ledIndex(fromIndex),LED_ON);
         for(int i=0; i<len; i++) {
             thc::Move mv = moves[i];
@@ -665,6 +686,7 @@ public:
     void finishMove(int toIndex,bool sendMove) {
         //todo didn't flash the rooks square when player castled, but did when computer wanted to move it
         moveIndex = 0;
+        checkFlashLed = -1;
         clearLeds();
         if(toIndex != moveSquareIndex[0]) {
             //this is a move, player didn't replace the piece on the square they lifted it off from
@@ -903,8 +925,10 @@ public:
                 led(i,LED_OFF);
             }
         }
+        if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
         if(complete) {
             clearLeds();
+            if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
             gameMode = MODE_PLAY;
             json j;
             j["action"] = "ready";

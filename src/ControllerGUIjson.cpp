@@ -988,7 +988,20 @@ void ControllerGUI::update(long ticks) {
                             hint["action"] = "hint";
                             hint["from"] = moveStr.substr(0,2);
                             hint["to"]   = moveStr.substr(2,2);
-                            fprintf(stderr, "ENGINE HINT: %s->%s\n", moveStr.substr(0,2).c_str(), moveStr.substr(2,2).c_str());
+                            // Check if capture using pre-move FEN
+                            {
+                                thc::ChessRules cr;
+                                cr.Forsyth(preMovefen.c_str());
+                                std::string toSq = moveStr.substr(2,2);
+                                int col = tolower(toSq[0]) - 'a';
+                                int row = 8 - (toSq[1] - '0');
+                                int idx = row * 8 + col;
+                                char piece = cr.squares[idx];
+                                bool isCapture = (piece != ' ' && piece != '.');
+                                hint["capture"] = isCapture;
+                                fprintf(stderr, "ENGINE HINT: %s->%s capture=%d piece=%c\n",
+                                    moveStr.substr(0,2).c_str(), moveStr.substr(2,2).c_str(), isCapture?1:0, piece);
+                            }
                             if (!m_waitingForRook) simSend(hint);
                         } else {
                             nlohmann::json mv;
