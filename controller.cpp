@@ -78,6 +78,7 @@ using namespace nlohmann;   //trying this
 #define LED_OFF 0
 #define LED_ON 1
 #define LED_FLASH 3
+#define LED_SLOW_FLASH 5
 
 #define SAN_BUF_SIZE 6      ///< Minimum buffer size to hold a san or long san move. Something like long "h7h8q" or san "h8=Q+"
 
@@ -99,8 +100,10 @@ public:
     bool boardFlipped = false;
     bool pendingEngineMove = false;  // true when waiting for white move confirmation
     int hintToLed = -1;   // LED index of hint to square
+    bool pendingMateFlash = false;  // true when checkmate flash received but not yet confirmed
     int checkFlashLed = -1;  // LED index of king in check (-1 = none)
     int flashState=0;
+    int slowFlashCounter=0;
     ChessMove waitMove;         ///< The move the board is waiting for the player to complete.
     char moveType[4]= {'_','_','_','_'};
     int moveSquareIndex[4]={-1,-1,-1,-1};
@@ -266,6 +269,24 @@ public:
     void setFlash(json& j, json& jresult) {
         jresult["success"] = true;
         bool on = j.contains("on") && j["on"].get<bool>();
+        bool isMate = j.contains("mate") && j["mate"].get<bool>();
+        if (isMate) {
+            hintToLed = -1;
+            checkFlashLed = -1;
+            pendingMateFlash = true;
+            clearLeds();
+            if (on && j.contains("squares") && j["squares"].is_array()) {
+                for (auto& sq : j["squares"]) {
+                    std::string square = sq.get<std::string>();
+                    int idx = toIndex(square.c_str());
+                    checkFlashLed = ledIndex(idx);
+                    printf("CHECKMATE FLASH square=%s index=%d ledIndex=%d\n", square.c_str(), idx, checkFlashLed);
+                    led(checkFlashLed, LED_FLASH);
+                }
+            }
+            return;
+        }
+        if (gameMode == MODE_MATE) return;
         checkFlashLed = -1;
         clearLeds();
         if (on && j.contains("squares") && j["squares"].is_array()) {
@@ -274,13 +295,15 @@ public:
                 int idx = toIndex(square.c_str());
                 checkFlashLed = ledIndex(idx);
                 printf("FLASH square=%s index=%d ledIndex=%d\n", square.c_str(), idx, checkFlashLed);
-                led(checkFlashLed, LED_FLASH);
+                led(checkFlashLed, LED_SLOW_FLASH);
             }
         }
     }
     void setHint(json& j, json& jresult) {
         jresult["success"] = true;
+        // Allow hint even near checkmate to show mating move
         pendingEngineMove = boardFlipped;  // when playing black, hint = engine move to confirm
+        hintToLed = -1;
         clearLeds();
         if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
         if (j.contains("from")) {
@@ -385,6 +408,7 @@ public:
         string fen = j["fen"];
         setPosition(fen.c_str());
         display_position(rules);
+        evaluateCheckMate();
         jresult["success"] = true;
     }
 
@@ -395,6 +419,9 @@ public:
             if(!mode.compare("play")) {
                 gameMode = MODE_PLAY;
                 boardFlipped = false;
+                hintToLed = -1;
+                checkFlashLed = -1;
+                pendingMateFlash = false;
                 jresult["message"] = "game mode set to MODE_PLAY";
                 clearLeds();
             } else if(!mode.compare("setup")) {
@@ -404,6 +431,9 @@ public:
             } else if(!mode.compare("playblack")) {
                 gameMode = MODE_PLAY;
                 boardFlipped = true;
+                hintToLed = -1;
+                checkFlashLed = -1;
+                pendingMateFlash = false;
                 jresult["message"] = "game mode set to MODE_PLAY (black side)";
                 clearLeds();
             } else if(!mode.compare("inspect")) {
@@ -552,9 +582,13 @@ public:
     //Using ledState array, turns LEDs on, and flashes them if the flash bit is set
     void flasher() {
         flashState = !flashState;
+        slowFlashCounter = (slowFlashCounter + 1) % 8;
+        bool slowFlashState = (slowFlashCounter < 4);
         for(int i=0; i<64; i++) {
             int on=ledState[i]&1;
-            if(ledState[i]&2)
+            if(ledState[i] == LED_SLOW_FLASH)
+                on = slowFlashState ? 1 : 0;
+            else if(ledState[i]&2)
                 on=flashState;
             digitalWrite(output[i],on?1:0);
         }
@@ -594,7 +628,7 @@ public:
         unsigned int len = moves.size();
         int validMoves=0;
         clearLeds();
-        if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
+        if (checkFlashLed >= 0) led(checkFlashLed, LED_SLOW_FLASH);
         led(ledIndex(fromIndex),LED_ON);
         for(int i=0; i<len; i++) {
             thc::Move mv = moves[i];
@@ -661,11 +695,14 @@ public:
         }
         if(terminal==thc::TERMINAL::TERMINAL_BCHECKMATE || terminal==thc::TERMINAL::TERMINAL_WCHECKMATE) {
             gameMode=MODE_MATE;
+            clearLeds();
+            checkFlashLed = -1;
+            hintToLed = -1;
             for(int i=0; i<64; i++) {
                 if(rules.pieceAt(i) == 'k' && terminal == thc::TERMINAL::TERMINAL_BCHECKMATE)
-                    led(i,LED_FLASH);
+                    led(ledIndex(i), LED_FLASH);
                 else if(rules.pieceAt(i) == 'K' && terminal == thc::TERMINAL::TERMINAL_WCHECKMATE)
-                    led(i,LED_FLASH);
+                    led(ledIndex(i), LED_FLASH);
             }
         }
     }
@@ -694,8 +731,17 @@ public:
     void finishMove(int toIndex,bool sendMove) {
         //todo didn't flash the rooks square when player castled, but did when computer wanted to move it
         moveIndex = 0;
+        int savedMateKingLed = checkFlashLed;
+        bool isMateMove = pendingMateFlash;
+        pendingMateFlash = false;
+        hintToLed = -1;
         checkFlashLed = -1;
         clearLeds();
+        if (isMateMove) {
+            gameMode = MODE_MATE;
+            led(savedMateKingLed, LED_FLASH);
+            return;
+        }
         if(toIndex != moveSquareIndex[0]) {
             //this is a move, player didn't replace the piece on the square they lifted it off from
             char buffer[SAN_BUF_SIZE];
@@ -933,12 +979,12 @@ public:
                 led(i,LED_OFF);
             }
         }
-        if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
+        if (checkFlashLed >= 0) led(checkFlashLed, LED_SLOW_FLASH);
         if (hintToLed >= 0) led(hintToLed, LED_ON);
         if(complete) {
             clearLeds();
             if (hintToLed >= 0) led(hintToLed, LED_ON);
-            if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
+            if (checkFlashLed >= 0) led(checkFlashLed, LED_SLOW_FLASH);
             gameMode = MODE_PLAY;
             json j;
             j["action"] = "ready";

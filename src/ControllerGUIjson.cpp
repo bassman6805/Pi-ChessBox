@@ -229,10 +229,7 @@ void ControllerGUI::update(long ticks) {
         if (m_connector && m_connector->isConnected() && m_board) {
             try {
             if (m_gameOver) {
-                // Keep flashing the king square
-                std::string kSq = m_board->getKingSquare();
-                if (!kSq.empty())
-                    try { simSend(nlohmann::json{{"action","flash"},{"on",true},{"squares",nlohmann::json::array({kSq})}}); } catch (...) {}
+                // Game over - no sync needed, flash already sent once
             } else {
                 nlohmann::json jSync = {{"action","highlight"},{"color","green"},{"squares",nlohmann::json::array()}};
                 for (int i = 0; i < 64; i++) {
@@ -746,7 +743,7 @@ void ControllerGUI::update(long ticks) {
                                     m_board->clearHighlights();
                                     if (!kSq.empty()) {
                                         m_board->setHighlight(kSq.c_str(), true);
-                                        simSend(nlohmann::json{{"action","flash"},{"on",true},{"squares",nlohmann::json::array({kSq})}});
+                                        simSend(nlohmann::json{{"action","flash"},{"on",true},{"mate",true},{"squares",nlohmann::json::array({kSq})}});
                                     }
                                     fprintf(stderr, "CHECKMATE!\n");
                                 } else if (m_board->isInCheck()) {
@@ -971,7 +968,7 @@ void ControllerGUI::update(long ticks) {
                         m_board->clearHighlights();
                         if (!kSq.empty()) {
                             m_board->setHighlight(kSq.c_str(), true);
-                            simSend(nlohmann::json{{"action","flash"},{"on",true},{"squares",nlohmann::json::array({kSq})}});
+                            simSend(nlohmann::json{{"action","flash"},{"on",true},{"mate",true},{"squares",nlohmann::json::array({kSq})}});
                         }
                         fprintf(stderr, "CHECKMATE!\n");
                     } else if (m_board->isInCheck()) {
