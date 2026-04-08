@@ -98,6 +98,7 @@ public:
     int gameMode;
     bool boardFlipped = false;
     bool pendingEngineMove = false;  // true when waiting for white move confirmation
+    int hintToLed = -1;   // LED index of hint to square
     int checkFlashLed = -1;  // LED index of king in check (-1 = none)
     int flashState=0;
     ChessMove waitMove;         ///< The move the board is waiting for the player to complete.
@@ -292,7 +293,14 @@ public:
         if (j.contains("to")) {
             string to = j["to"];
             int idx = toIndex(to.c_str());
-            printf("HINT to=%s index=%d\n", to.c_str(), idx);
+            bool isCapture = j.contains("capture") && j["capture"].get<bool>();
+            if (isCapture) {
+                hintToLed = ledIndex(idx);
+                printf("HINT to=%s index=%d ledIndex=%d (capture)\n", to.c_str(), idx, hintToLed);
+            } else {
+                hintToLed = -1;
+                printf("HINT to=%s index=%d (no capture)\n", to.c_str(), idx);
+            }
             led(ledIndex(idx), LED_ON);
         }
     }
@@ -926,8 +934,10 @@ public:
             }
         }
         if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
+        if (hintToLed >= 0) led(hintToLed, LED_ON);
         if(complete) {
             clearLeds();
+            if (hintToLed >= 0) led(hintToLed, LED_ON);
             if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
             gameMode = MODE_PLAY;
             json j;
