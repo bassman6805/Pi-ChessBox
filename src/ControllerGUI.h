@@ -60,6 +60,7 @@ private:
     std::string m_undoTargetFen;
     std::string m_undoCurrentFen;
     std::string m_markFen = "";          // saved FEN for variation mark
+    class MarkPopup* m_markPopup = nullptr;
     bool m_markClockRunning = false;     // clock state when mark was set
     bool m_markWhiteTicking = false;     // whose clock was ticking at mark
     bool m_engineMoveRequested = false;

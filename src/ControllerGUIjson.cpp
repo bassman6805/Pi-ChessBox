@@ -2,6 +2,7 @@
 #include "Button.h"
 #include "ImageButton.h"
 #include "MenuPopup.h"
+#include "MarkPopup.h"
 #include "Connector.h" 
 #include "UCIClient.h"
 #include "json.hpp"
@@ -44,7 +45,8 @@ ControllerGUI::ControllerGUI(bool isServer, const char* host, int port, const ch
     m_connector = new Connector();
     m_pendingMoveStart = "";
     m_filePickerPopup = new FilePickerPopup(480, 800, nullptr);
-    m_clockPopup = new ClockPopup(480, 800, nullptr); 
+    m_clockPopup = new ClockPopup(480, 800, nullptr);
+    m_markPopup  = new MarkPopup(480, 800, nullptr); 
 }
 
 ControllerGUI::~ControllerGUI() {
@@ -58,6 +60,7 @@ ControllerGUI::~ControllerGUI() {
     delete m_connector;
     delete m_filePickerPopup;
     delete m_clockPopup;
+    delete m_markPopup;
 }
 
 void ControllerGUI::initComponents() {
@@ -70,6 +73,7 @@ void ControllerGUI::initComponents() {
     if (m_menuPopup  && m_font) m_menuPopup->setFont(m_font);
     if (m_filePickerPopup && m_font) m_filePickerPopup->setFont(m_font);
     if (m_clockPopup      && m_font) m_clockPopup->setFont(m_font);
+    if (m_markPopup       && m_font) m_markPopup->setFont(m_font);
 
     // Asset path - works on both Windows and Pi
 #ifdef _WIN32
@@ -1367,22 +1371,9 @@ void ControllerGUI::processButtonClicked(Button* b) {
         return;
     }
     if (b->id() == "Return") {
-        if (!m_markFen.empty() && m_board) {
-            m_board->Forsyth(m_markFen.c_str());
-            m_clockRunning = m_markClockRunning;
-            m_whiteTicking = m_markWhiteTicking;
-            // Send setposition to controller
-            try {
-                nlohmann::json jp;
-                jp["action"] = "setposition";
-                jp["fen"] = m_markFen;
-                if (m_connector && m_connector->isConnected())
-                    m_connector->send((jp.dump()+"\r\n").c_str());
-            } catch(...) {}
-            // Restart engine from this position
-            if (m_uciClient) m_uciClient->setPosition(m_markFen.c_str());
-            if (m_menuPopup) m_menuPopup->setButtonLabel("Return", "Mark");
-            m_markFen = "";
+        if (m_markPopup) {
+            m_menuPopup->hide();
+            m_markPopup->show();
         }
         return;
     }
@@ -1427,6 +1418,39 @@ Component* ControllerGUI::mouseEvent(SDL_Event* event) {
                     m_whiteTimeMs  = newTimeMs;
                     m_blackTimeMs  = newTimeMs;
                 }
+            }
+        }
+        return caught;
+    }
+    if (m_markPopup && m_markPopup->isVisible()) {
+        Component* caught = m_markPopup->mouseEvent(event);
+        if (caught) {
+            MarkPopup::Result res = m_markPopup->getResult();
+            m_markPopup->clearResult();
+            if (res == MarkPopup::RETURN_TO_MARK && !m_markFen.empty() && m_board) {
+                m_board->Forsyth(m_markFen.c_str());
+                m_clockRunning = m_markClockRunning;
+                m_whiteTicking = m_markWhiteTicking;
+                try {
+                    nlohmann::json jp;
+                    jp["action"] = "setposition";
+                    jp["fen"] = m_markFen;
+                    if (m_connector && m_connector->isConnected())
+                        m_connector->send((jp.dump()+"\r\n").c_str());
+                } catch(...) {}
+                if (m_uciClient) m_uciClient->setPosition(m_markFen.c_str());
+                if (m_menuPopup) m_menuPopup->setButtonLabel("Return", "Mark");
+                m_markFen = "";
+            } else if (res == MarkPopup::NEW_MARK && m_board) {
+                m_markFen = std::string(m_board->getFen());
+                m_markClockRunning = m_clockRunning;
+                m_markWhiteTicking = m_whiteTicking;
+                // clock stays paused, button stays "Return"
+            } else if (res == MarkPopup::CLEAR) {
+                m_markFen = "";
+                m_clockRunning = m_markClockRunning;
+                m_whiteTicking = m_markWhiteTicking;
+                if (m_menuPopup) m_menuPopup->setButtonLabel("Return", "Mark");
             }
         }
         return caught;
@@ -1547,6 +1571,7 @@ void ControllerGUI::draw(SDL_Renderer* renderer) {
         m_filePickerPopup->draw(renderer);
     if (m_clockEnabled && !(m_menuPopup && m_menuPopup->isVisible())) drawClock(renderer);
     if (m_clockPopup && m_clockPopup->isVisible()) m_clockPopup->draw(renderer);
+    if (m_markPopup  && m_markPopup->isVisible())  m_markPopup->draw(renderer);
     if (m_levelPopup && m_levelPopup->isVisible())
         m_levelPopup->draw(renderer);
     if (m_depthPopup && m_depthPopup->isVisible())

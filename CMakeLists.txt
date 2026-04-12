@@ -56,6 +56,7 @@ set(CONTROLLER_SOURCES
     src/FontManager.cpp
     src/Window.cpp
     src/ClockPopup.cpp
+    src/MarkPopup.cpp
     src/FilePickerPopup.cpp
     src/ControllerGUIjson.cpp
     src/Prefs.cpp
