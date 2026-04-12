@@ -23,6 +23,7 @@ public:
     
     void draw(SDL_Renderer* renderer) override;
     void setTextColor(SDL_Color c) { m_textColor = c; }
+    void setLabel(const std::string& text) { m_text = text; }
 
 protected:
     std::string m_text;

@@ -59,6 +59,9 @@ private:
     std::string m_pendingHintMove;
     std::string m_undoTargetFen;
     std::string m_undoCurrentFen;
+    std::string m_markFen = "";          // saved FEN for variation mark
+    bool m_markClockRunning = false;     // clock state when mark was set
+    bool m_markWhiteTicking = false;     // whose clock was ticking at mark
     bool m_engineMoveRequested = false;
     std::string m_rookTargetSquare = "";
     std::string m_lastEngineTarget = "";

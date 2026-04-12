@@ -15,6 +15,7 @@ public:
     virtual Component* mouseEvent(SDL_Event* event);
 
     std::string id() const { return m_id; }
+    void setId(const std::string& id) { m_id = id; }
     SDL_Rect* rect() { return &m_rect; }
 
     static void copyRect(SDL_Rect* dest, SDL_Rect* src);

@@ -1356,6 +1356,36 @@ void ControllerGUI::processButtonClicked(Button* b) {
     if (b->id() == "Load")   { if (m_filePickerPopup) m_filePickerPopup->show("/home/pi/chessbox/games"); return; }
     if (b->id() == "Export") exportPGN();
     if (b->id() == "Clock")  { if (m_clockPopup) m_clockPopup->show(m_clockPresetIndex); return; }
+    if (b->id() == "Mark") {
+        if (m_board) {
+            m_markFen = std::string(m_board->getFen());
+            m_markClockRunning = m_clockRunning;
+            m_markWhiteTicking = m_whiteTicking;
+            m_clockRunning = false;
+            if (m_menuPopup) m_menuPopup->setButtonLabel("Mark", "Return");
+        }
+        return;
+    }
+    if (b->id() == "Return") {
+        if (!m_markFen.empty() && m_board) {
+            m_board->Forsyth(m_markFen.c_str());
+            m_clockRunning = m_markClockRunning;
+            m_whiteTicking = m_markWhiteTicking;
+            // Send setposition to controller
+            try {
+                nlohmann::json jp;
+                jp["action"] = "setposition";
+                jp["fen"] = m_markFen;
+                if (m_connector && m_connector->isConnected())
+                    m_connector->send((jp.dump()+"\r\n").c_str());
+            } catch(...) {}
+            // Restart engine from this position
+            if (m_uciClient) m_uciClient->setPosition(m_markFen.c_str());
+            if (m_menuPopup) m_menuPopup->setButtonLabel("Return", "Mark");
+            m_markFen = "";
+        }
+        return;
+    }
     if (b->id() == "<")  { studyStep(-1); return; }
     if (b->id() == ">")  { studyStep(+1); return; }
     if (b->id() == "<<") { studyStep(INT_MIN); return; }
