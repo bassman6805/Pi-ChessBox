@@ -1062,6 +1062,12 @@ void ControllerGUI::newGame() {
     m_hintJustFired = false;
     m_waitingForRook = false;
     m_syncTimer = 0;
+    // Clear mark state
+    if (!m_markFen.empty()) {
+        m_markFen = "";
+        if (m_menuPopup) m_menuPopup->setButtonLabel("Return", "Mark");
+    }
+    m_clockRunning = false;
     // m_twoPlayer and m_humanIsBlack are set by the caller before newGame()
     if (m_movesPanel) m_movesPanel->clear();
     m_uciClient->sendUCINewGame();
