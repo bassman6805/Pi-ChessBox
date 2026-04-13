@@ -311,7 +311,7 @@ public:
         pendingEngineMove = boardFlipped;  // when playing black, hint = engine move to confirm
         hintToLed = -1;
         clearLeds();
-        if (checkFlashLed >= 0) led(checkFlashLed, LED_FLASH);
+        if (checkFlashLed >= 0) led(checkFlashLed, LED_SLOW_FLASH);
         if (j.contains("from")) {
             string from = j["from"];
             int idx = toIndex(from.c_str());
@@ -408,7 +408,7 @@ public:
             for(int i=0; i<64; i++) {
                 squareState[i] = (rules.pieceAt(i) == ' ' ? 0 : 1);
             }
-            gameMode = isBoardSetup() ? MODE_PLAY:MODE_SETPOSITION;
+            { bool bs=isBoardSetup(); printf("setPosition: isBoardSetup=%d gameMode=%s\n", bs?1:0, bs?"PLAY":"SETPOSITION"); gameMode = bs ? MODE_PLAY:MODE_SETPOSITION; }
         }
     }
     void setPosition(json& j,json& jresult) {
@@ -694,7 +694,7 @@ public:
     }
 
     /** Look to see if we are in checkmate, and set checkmated king's square to flash. */
-    void evaluateCheckMate() {
+    void evaluateCheckMate(bool humanMove=false) {
         thc::TERMINAL terminal;
         rules.Evaluate(terminal);
         switch(terminal) {
@@ -705,7 +705,8 @@ public:
             clearLeds();
             checkFlashLed = -1;
             hintToLed = -1;
-            if (!pendingMateFlash) {
+            if (!pendingMateFlash && humanMove) {
+                gameMode = MODE_MATE;
                 for(int i=0; i<64; i++) {
                     if(rules.pieceAt(i) == 'k' && terminal == thc::TERMINAL::TERMINAL_BCHECKMATE)
                         led(ledIndex(i), LED_FLASH);
@@ -834,7 +835,7 @@ public:
             squareState[toIndex] = 1;             // piece arrived at this chess square
             gameMode = MODE_PLAY;
         }
-        evaluateCheckMate();
+        evaluateCheckMate(true);
         evaluateDraw();
     }
 
@@ -922,7 +923,7 @@ public:
                     //piece down but no piece up, not valid
                     if (boardFlipped && i < 32) { squareState[i] = readState(i); continue; }
                     printf("put down a piece but none picked up\n");
-                    setPosition(rules.ForsythPublish().c_str());
+                    if (gameMode != MODE_MATE) setPosition(rules.ForsythPublish().c_str());
                 } else if(state) {
                     //piece down
                     printf("put down piece\n");
@@ -1000,9 +1001,17 @@ public:
         if (checkFlashLed >= 0 && !pendingMateFlash) led(checkFlashLed, LED_SLOW_FLASH);
         if (hintToLed >= 0 && !pendingMateFlash) led(hintToLed, LED_ON);
         if(complete) {
-            if (pendingMateFlash) {
-                // Don't clear LEDs - preserve hint LEDs set by setHint
-                gameMode = MODE_PLAY;
+            if (pendingMateFlash && checkFlashLed >= 0) {
+                // Physical move confirmed - clear hint LEDs, flash king only
+                pendingMateFlash = false;
+                pendingEngineMove = false;
+                clearLeds();
+                led(checkFlashLed, LED_FLASH);
+                gameMode = MODE_MATE;
+            } else if (pendingMateFlash) {
+                // No king LED saved, just go to mate
+                pendingMateFlash = false;
+                gameMode = MODE_MATE;
             } else {
                 clearLeds();
                 if (hintToLed >= 0) led(hintToLed, LED_ON);
