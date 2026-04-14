@@ -501,7 +501,29 @@ void ControllerGUI::update(long ticks) {
                         }
                         // Detect castle by king LAN (normal and flipped board coordinates)
                         if (lan=="e1g1"||lan=="e1c1"||lan=="e8g8"||lan=="e8c8"||
-                            lan=="d1b1"||lan=="d1f1"||lan=="d8b8"||lan=="d8f8") m_waitingForRook = true;
+                            lan=="d1b1"||lan=="d1f1"||lan=="d8b8"||lan=="d8f8") {
+                            m_waitingForRook = true;
+                            // Send hint showing where rook needs to go
+                            std::string rookFrom, rookTo;
+                            if (lan=="e1g1") { rookFrom="h1"; rookTo="f1"; }
+                            else if (lan=="e1c1") { rookFrom="a1"; rookTo="d1"; }
+                            else if (lan=="e8g8") { rookFrom="h8"; rookTo="f8"; }
+                            else if (lan=="e8c8") { rookFrom="a8"; rookTo="d8"; }
+                            else if (lan=="d1b1") { rookFrom="h1"; rookTo="f1"; }
+                            else if (lan=="d1f1") { rookFrom="a1"; rookTo="d1"; }
+                            else if (lan=="d8b8") { rookFrom="h8"; rookTo="f8"; }
+                            else if (lan=="d8f8") { rookFrom="a8"; rookTo="d8"; }
+                            if (!rookFrom.empty() && m_connector && m_connector->isConnected()) {
+                                try {
+                                    nlohmann::json jr;
+                                    jr["action"] = "hint";
+                                    jr["from"] = rookFrom;
+                                    jr["to"] = rookTo;
+                                    jr["capture"] = false;
+                                    m_connector->send((jr.dump()+"\r\n").c_str());
+                                } catch(...) {}
+                            }
+                        }
                         fprintf(stderr, "HUMAN MOVE: %s sent, requesting engine move waitingForRook=%d\n", lan.c_str(), m_waitingForRook?1:0);
                         // Send updated position to controller after HW move
                         if (!m_waitingForRook && m_connector && m_connector->isConnected()) {
@@ -759,8 +781,31 @@ void ControllerGUI::update(long ticks) {
                                 }
                             } catch (...) {}
                             lockoutTimer = 800;
-                            bool isCastle = (fullMove=="e1g1"||fullMove=="e1c1"||fullMove=="e8g8"||fullMove=="e8c8");
-                            if (isCastle) m_waitingForRook = true;
+                            bool isCastle = (fullMove=="e1g1"||fullMove=="e1c1"||fullMove=="e8g8"||fullMove=="e8c8"||
+                                              fullMove=="d1b1"||fullMove=="d1f1"||fullMove=="d8b8"||fullMove=="d8f8");
+                            if (isCastle) {
+                                m_waitingForRook = true;
+                                // Send hint showing where rook needs to go
+                                std::string rookFrom, rookTo;
+                                if (fullMove=="e1g1") { rookFrom="h1"; rookTo="f1"; }
+                                else if (fullMove=="e1c1") { rookFrom="a1"; rookTo="d1"; }
+                                else if (fullMove=="e8g8") { rookFrom="h8"; rookTo="f8"; }
+                                else if (fullMove=="e8c8") { rookFrom="a8"; rookTo="d8"; }
+                                else if (fullMove=="d1b1") { rookFrom="h1"; rookTo="f1"; }
+                                else if (fullMove=="d1f1") { rookFrom="a1"; rookTo="d1"; }
+                                else if (fullMove=="d8b8") { rookFrom="h8"; rookTo="f8"; }
+                                else if (fullMove=="d8f8") { rookFrom="a8"; rookTo="d8"; }
+                                if (!rookFrom.empty() && m_connector && m_connector->isConnected()) {
+                                    try {
+                                        nlohmann::json jr;
+                                        jr["action"] = "hint";
+                                        jr["from"] = rookFrom;
+                                        jr["to"] = rookTo;
+                                        jr["capture"] = false;
+                                        m_connector->send((jr.dump()+"\r\n").c_str());
+                                    } catch(...) {}
+                                }
+                            }
                             // Send updated position to controller after human move (skip for castle)
                             if (!m_waitingForRook && m_connector && m_connector->isConnected()) {
                                 try {
