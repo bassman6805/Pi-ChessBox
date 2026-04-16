@@ -1231,7 +1231,11 @@ void ControllerGUI::loadPGNFile(const std::string& path) {
     m_studyLanMoves.clear();
 
     thc::ChessRules cr;
-    cr.Forsyth("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    {
+        std::string startFen = m_pgnLoader.header("FEN");
+        if (startFen.empty()) startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        cr.Forsyth(startFen.c_str());
+    }
 
     // Store starting position
     static std::string fen0; fen0 = cr.ForsythPublish();

@@ -719,22 +719,20 @@ public:
 
     /** Check if there is a draw. */
     void evaluateDraw() {
-        //todo lee implement evaluate draw
-
-        //        thc::DRAWTYPE drawType;
-//        rules.IsDraw(rules.WhiteToPlay(),drawType);
-//        switch(drawType) {
-//            case thc::DRAWTYPE::DRAWTYPE_50MOVE: printf("DRAWTYPE_50MOVE\n"); break;
-//            case thc::DRAWTYPE::DRAWTYPE_INSUFFICIENT: printf("DRAWTYPE_INSUFFICIENT\n"); break;
-//            case thc::DRAWTYPE::DRAWTYPE_INSUFFICIENT_AUTO: printf("DRAWTYPE_INSUFFICIENT_AUTO\n"); break;
-//            case thc::DRAWTYPE::DRAWTYPE_REPITITION: printf("DRAWTYPE_DRAWTYPE_REPITITION"); break;
-//        }
-//        if(drawType != thc::DRAWTYPE::NOT_DRAW) {
-//            for(int i=0; i<64; i++) {
-//                if(rules.pieceAt(i) == 'k' || rules.pieceAt(i) == 'K')
-//                    led(i,LED_FLASH);
-//            }
-//        }
+        thc::DRAWTYPE drawType;
+        rules.IsDraw(rules.WhiteToPlay(), drawType);
+        int pieceCount2 = 0;
+        for (int pi2 = 0; pi2 < 64; pi2++) { char pc2 = rules.pieceAt(pi2); if (pc2 != ' ' && pc2 != '.') pieceCount2++; }
+        bool isKvK2 = (pieceCount2 == 2);
+        if (drawType != thc::DRAWTYPE::NOT_DRAW && isKvK2) {
+            printf("DRAW detected: %d\n", (int)drawType);
+            gameMode = MODE_MATE;
+            clearLeds();
+            for (int i = 0; i < 64; i++) {
+                char p = rules.pieceAt(i);
+                if (p == 'k' || p == 'K') led(ledIndex(i), LED_SLOW_FLASH);
+            }
+        }
     }
 
     /** Piece was put down, now check what the move was. */
@@ -988,6 +986,7 @@ public:
             int state = readState(i);
             if(squareState[i] != state) {
                 complete=false;
+                if (squareState[i] || state) printf("MISMATCH i=%d sq=%d state=%d\n", i, squareState[i], state);
                 if (!pendingMateFlash) {
                     if(state && !squareState[i])
                         led(i,LED_FLASH);
@@ -1001,6 +1000,28 @@ public:
         if (checkFlashLed >= 0 && !pendingMateFlash) led(checkFlashLed, LED_SLOW_FLASH);
         if (hintToLed >= 0 && !pendingMateFlash) led(hintToLed, LED_ON);
         if(complete) {
+            // Check for draw after physical confirmation
+            {
+                thc::DRAWTYPE drawType;
+                rules.IsDraw(rules.WhiteToPlay(), drawType);
+                // Count pieces - only declare draw for true king vs king
+                int pieceCount = 0;
+                for (int pi = 0; pi < 64; pi++) { char pc = rules.pieceAt(pi); if (pc != ' ' && pc != '.') pieceCount++; }
+                bool isKvK = (pieceCount == 2);
+                        if (drawType != thc::DRAWTYPE::NOT_DRAW && isKvK) {
+                    clearLeds();
+                    for (int di = 0; di < 64; di++) {
+                        char p = rules.pieceAt(di);
+                        if (p == 'k' || p == 'K') led(ledIndex(di), LED_FLASH);
+                    }
+                    gameMode = MODE_MATE;
+                    json jd;
+                    jd["action"] = "ready";
+                    send2All(jd.dump().c_str());
+                    send2All("\n");
+                    return;
+                }
+            }
             if (pendingMateFlash && checkFlashLed >= 0) {
                 // Physical move confirmed - clear hint LEDs, flash king only
                 pendingMateFlash = false;

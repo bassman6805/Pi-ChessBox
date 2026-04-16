@@ -20,7 +20,7 @@ bool PGNLoader::load(const std::string& pgnText) {
     parseHeaders(pgnText);
     parseMoves(pgnText);
     fprintf(stderr, "PGNLoader: loaded %zu moves\n", m_moves.size());
-    return !m_moves.empty();
+    return !m_moves.empty() || !header("FEN").empty();
 }
 
 void PGNLoader::parseHeaders(const std::string& text) {
