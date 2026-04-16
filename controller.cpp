@@ -987,13 +987,11 @@ public:
             int state = readState(i);
             if(squareState[i] != state) {
                 complete=false;
-                if ((squareState[i] || state) && !m_lastMismatch[i]) printf("MISMATCH i=%d sq=%d state=%d\n", i, squareState[i], state);
-                m_lastMismatch[i] = (squareState[i] != state);
                 if (!pendingMateFlash) {
                     if(state && !squareState[i])
                         led(i,LED_FLASH);
                     else if(!state && squareState[i])
-                        led(i,LED_ON);
+                        led(i,LED_FLASH);
                 }
             } else {
                 if (!pendingMateFlash) led(i,LED_OFF);
