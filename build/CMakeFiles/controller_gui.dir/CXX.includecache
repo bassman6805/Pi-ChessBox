@@ -450,6 +450,12 @@ string
 cmath
 -
 
+/home/pi/chessbox/src/ClockPopup.h
+Component.h
+/home/pi/chessbox/src/Component.h
+SDL2/SDL_ttf.h
+-
+
 /home/pi/chessbox/src/Component.h
 SDL2/SDL.h
 -
@@ -505,6 +511,10 @@ PGNLoader.h
 /home/pi/chessbox/src/PGNLoader.h
 MenuPopup.h
 /home/pi/chessbox/src/MenuPopup.h
+FilePickerPopup.h
+/home/pi/chessbox/src/FilePickerPopup.h
+ClockPopup.h
+/home/pi/chessbox/src/ClockPopup.h
 Connector.h
 /home/pi/chessbox/src/Connector.h
 SDL_ttf.h
@@ -527,6 +537,8 @@ ImageButton.h
 /home/pi/chessbox/src/ImageButton.h
 MenuPopup.h
 /home/pi/chessbox/src/MenuPopup.h
+MarkPopup.h
+/home/pi/chessbox/src/MarkPopup.h
 Connector.h
 /home/pi/chessbox/src/Connector.h
 UCIClient.h
@@ -560,6 +572,16 @@ Component.h
 SDL2/SDL_ttf.h
 -
 
+/home/pi/chessbox/src/FilePickerPopup.h
+Component.h
+/home/pi/chessbox/src/Component.h
+SDL2/SDL_ttf.h
+-
+vector
+-
+string
+-
+
 /home/pi/chessbox/src/ImageButton.h
 Button.h
 /home/pi/chessbox/src/Button.h
@@ -590,6 +612,14 @@ string
 functional
 -
 
+/home/pi/chessbox/src/MarkPopup.h
+Component.h
+/home/pi/chessbox/src/Component.h
+SDL2/SDL_ttf.h
+-
+string
+-
+
 /home/pi/chessbox/src/MenuPopup.h
 Component.h
 /home/pi/chessbox/src/Component.h
@@ -614,6 +644,18 @@ vector
 string
 -
 SDL2/SDL_ttf.h
+-
+
+/home/pi/chessbox/src/PGNLoader.cpp
+PGNLoader.h
+/home/pi/chessbox/src/PGNLoader.h
+fstream
+-
+sstream
+-
+cstdio
+-
+cctype
 -
 
 /home/pi/chessbox/src/PGNLoader.h

@@ -313,6 +313,33 @@ src/Button.cpp.s:
 	$(MAKE) -f CMakeFiles/sim.dir/build.make CMakeFiles/sim.dir/src/Button.cpp.s
 .PHONY : src/Button.cpp.s
 
+src/ClockPopup.o: src/ClockPopup.cpp.o
+
+.PHONY : src/ClockPopup.o
+
+# target to build an object file
+src/ClockPopup.cpp.o:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o
+.PHONY : src/ClockPopup.cpp.o
+
+src/ClockPopup.i: src/ClockPopup.cpp.i
+
+.PHONY : src/ClockPopup.i
+
+# target to preprocess a source file
+src/ClockPopup.cpp.i:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.i
+.PHONY : src/ClockPopup.cpp.i
+
+src/ClockPopup.s: src/ClockPopup.cpp.s
+
+.PHONY : src/ClockPopup.s
+
+# target to generate assembly for a file
+src/ClockPopup.cpp.s:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.s
+.PHONY : src/ClockPopup.cpp.s
+
 src/Component.o: src/Component.cpp.o
 
 .PHONY : src/Component.o
@@ -451,6 +478,33 @@ src/Dialog.cpp.s:
 	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/Dialog.cpp.s
 .PHONY : src/Dialog.cpp.s
 
+src/FilePickerPopup.o: src/FilePickerPopup.cpp.o
+
+.PHONY : src/FilePickerPopup.o
+
+# target to build an object file
+src/FilePickerPopup.cpp.o:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o
+.PHONY : src/FilePickerPopup.cpp.o
+
+src/FilePickerPopup.i: src/FilePickerPopup.cpp.i
+
+.PHONY : src/FilePickerPopup.i
+
+# target to preprocess a source file
+src/FilePickerPopup.cpp.i:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.i
+.PHONY : src/FilePickerPopup.cpp.i
+
+src/FilePickerPopup.s: src/FilePickerPopup.cpp.s
+
+.PHONY : src/FilePickerPopup.s
+
+# target to generate assembly for a file
+src/FilePickerPopup.cpp.s:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.s
+.PHONY : src/FilePickerPopup.cpp.s
+
 src/FontManager.o: src/FontManager.cpp.o
 
 .PHONY : src/FontManager.o
@@ -537,6 +591,33 @@ src/LevelPopup.s: src/LevelPopup.cpp.s
 src/LevelPopup.cpp.s:
 	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/LevelPopup.cpp.s
 .PHONY : src/LevelPopup.cpp.s
+
+src/MarkPopup.o: src/MarkPopup.cpp.o
+
+.PHONY : src/MarkPopup.o
+
+# target to build an object file
+src/MarkPopup.cpp.o:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o
+.PHONY : src/MarkPopup.cpp.o
+
+src/MarkPopup.i: src/MarkPopup.cpp.i
+
+.PHONY : src/MarkPopup.i
+
+# target to preprocess a source file
+src/MarkPopup.cpp.i:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.i
+.PHONY : src/MarkPopup.cpp.i
+
+src/MarkPopup.s: src/MarkPopup.cpp.s
+
+.PHONY : src/MarkPopup.s
+
+# target to generate assembly for a file
+src/MarkPopup.cpp.s:
+	$(MAKE) -f CMakeFiles/controller_gui.dir/build.make CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.s
+.PHONY : src/MarkPopup.cpp.s
 
 src/MovesPanel.o: src/MovesPanel.cpp.o
 
@@ -926,6 +1007,9 @@ help:
 	@echo "... src/Button.o"
 	@echo "... src/Button.i"
 	@echo "... src/Button.s"
+	@echo "... src/ClockPopup.o"
+	@echo "... src/ClockPopup.i"
+	@echo "... src/ClockPopup.s"
 	@echo "... src/Component.o"
 	@echo "... src/Component.i"
 	@echo "... src/Component.s"
@@ -941,6 +1025,9 @@ help:
 	@echo "... src/Dialog.o"
 	@echo "... src/Dialog.i"
 	@echo "... src/Dialog.s"
+	@echo "... src/FilePickerPopup.o"
+	@echo "... src/FilePickerPopup.i"
+	@echo "... src/FilePickerPopup.s"
 	@echo "... src/FontManager.o"
 	@echo "... src/FontManager.i"
 	@echo "... src/FontManager.s"
@@ -950,6 +1037,9 @@ help:
 	@echo "... src/LevelPopup.o"
 	@echo "... src/LevelPopup.i"
 	@echo "... src/LevelPopup.s"
+	@echo "... src/MarkPopup.o"
+	@echo "... src/MarkPopup.i"
+	@echo "... src/MarkPopup.s"
 	@echo "... src/MovesPanel.o"
 	@echo "... src/MovesPanel.i"
 	@echo "... src/MovesPanel.s"

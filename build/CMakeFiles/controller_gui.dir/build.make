@@ -356,9 +356,48 @@ CMakeFiles/controller_gui.dir/src/Window.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/controller_gui.dir/src/Window.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/pi/chessbox/src/Window.cpp -o CMakeFiles/controller_gui.dir/src/Window.cpp.s
 
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o: CMakeFiles/controller_gui.dir/flags.make
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o: ../src/ClockPopup.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building CXX object CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o -c /home/pi/chessbox/src/ClockPopup.cpp
+
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/pi/chessbox/src/ClockPopup.cpp > CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.i
+
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/pi/chessbox/src/ClockPopup.cpp -o CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.s
+
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o: CMakeFiles/controller_gui.dir/flags.make
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o: ../src/MarkPopup.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building CXX object CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o -c /home/pi/chessbox/src/MarkPopup.cpp
+
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/pi/chessbox/src/MarkPopup.cpp > CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.i
+
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/pi/chessbox/src/MarkPopup.cpp -o CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.s
+
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o: CMakeFiles/controller_gui.dir/flags.make
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o: ../src/FilePickerPopup.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Building CXX object CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o -c /home/pi/chessbox/src/FilePickerPopup.cpp
+
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/pi/chessbox/src/FilePickerPopup.cpp > CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.i
+
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/pi/chessbox/src/FilePickerPopup.cpp -o CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.s
+
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: CMakeFiles/controller_gui.dir/flags.make
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/ControllerGUIjson.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Building CXX object CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_27) "Building CXX object CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o -c /home/pi/chessbox/src/ControllerGUIjson.cpp
 
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.i: cmake_force
@@ -371,7 +410,7 @@ CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.s: cmake_force
 
 CMakeFiles/controller_gui.dir/src/Prefs.cpp.o: CMakeFiles/controller_gui.dir/flags.make
 CMakeFiles/controller_gui.dir/src/Prefs.cpp.o: ../src/Prefs.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Building CXX object CMakeFiles/controller_gui.dir/src/Prefs.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_28) "Building CXX object CMakeFiles/controller_gui.dir/src/Prefs.cpp.o"
 	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/controller_gui.dir/src/Prefs.cpp.o -c /home/pi/chessbox/src/Prefs.cpp
 
 CMakeFiles/controller_gui.dir/src/Prefs.cpp.i: cmake_force
@@ -407,6 +446,9 @@ controller_gui_OBJECTS = \
 "CMakeFiles/controller_gui.dir/src/TextField.cpp.o" \
 "CMakeFiles/controller_gui.dir/src/FontManager.cpp.o" \
 "CMakeFiles/controller_gui.dir/src/Window.cpp.o" \
+"CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o" \
+"CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o" \
+"CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o" \
 "CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o" \
 "CMakeFiles/controller_gui.dir/src/Prefs.cpp.o"
 
@@ -436,11 +478,14 @@ controller_gui: CMakeFiles/controller_gui.dir/src/Dialog.cpp.o
 controller_gui: CMakeFiles/controller_gui.dir/src/TextField.cpp.o
 controller_gui: CMakeFiles/controller_gui.dir/src/FontManager.cpp.o
 controller_gui: CMakeFiles/controller_gui.dir/src/Window.cpp.o
+controller_gui: CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o
+controller_gui: CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o
+controller_gui: CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o
 controller_gui: CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o
 controller_gui: CMakeFiles/controller_gui.dir/src/Prefs.cpp.o
 controller_gui: CMakeFiles/controller_gui.dir/build.make
 controller_gui: CMakeFiles/controller_gui.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Linking CXX executable controller_gui"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/pi/chessbox/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_29) "Linking CXX executable controller_gui"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/controller_gui.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

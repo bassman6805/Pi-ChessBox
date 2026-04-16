@@ -122,6 +122,10 @@ CMakeFiles/controller_gui.dir/src/Button.cpp.o
  /usr/local/include/SDL2/SDL_video.h
  /usr/local/include/SDL2/begin_code.h
  /usr/local/include/SDL2/close_code.h
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o
+ /home/pi/chessbox/src/ClockPopup.cpp
+ /home/pi/chessbox/src/ClockPopup.h
+ /home/pi/chessbox/src/Component.h
 CMakeFiles/controller_gui.dir/src/Component.cpp.o
  /home/pi/chessbox/src/Component.cpp
  /home/pi/chessbox/src/Component.h
@@ -142,14 +146,17 @@ CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o
  ../tiny-process-library/process.hpp
  /home/pi/chessbox/src/Board.h
  /home/pi/chessbox/src/Button.h
+ /home/pi/chessbox/src/ClockPopup.h
  /home/pi/chessbox/src/Component.h
  /home/pi/chessbox/src/Connector.h
  /home/pi/chessbox/src/ControllerGUI.h
  /home/pi/chessbox/src/ControllerGUIjson.cpp
  /home/pi/chessbox/src/DepthPopup.h
+ /home/pi/chessbox/src/FilePickerPopup.h
  /home/pi/chessbox/src/ImageButton.h
  /home/pi/chessbox/src/Label.h
  /home/pi/chessbox/src/LevelPopup.h
+ /home/pi/chessbox/src/MarkPopup.h
  /home/pi/chessbox/src/MenuPopup.h
  /home/pi/chessbox/src/MovesPanel.h
  /home/pi/chessbox/src/PGNLoader.h
@@ -261,6 +268,10 @@ CMakeFiles/controller_gui.dir/src/Dialog.cpp.o
  /usr/local/include/SDL2/SDL_video.h
  /usr/local/include/SDL2/begin_code.h
  /usr/local/include/SDL2/close_code.h
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o
+ /home/pi/chessbox/src/Component.h
+ /home/pi/chessbox/src/FilePickerPopup.cpp
+ /home/pi/chessbox/src/FilePickerPopup.h
 CMakeFiles/controller_gui.dir/src/FontManager.cpp.o
  /home/pi/chessbox/src/FontManager.cpp
  /home/pi/chessbox/src/FontManager.h
@@ -319,6 +330,10 @@ CMakeFiles/controller_gui.dir/src/LevelPopup.cpp.o
  /home/pi/chessbox/src/Component.h
  /home/pi/chessbox/src/LevelPopup.cpp
  /home/pi/chessbox/src/LevelPopup.h
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o
+ /home/pi/chessbox/src/Component.h
+ /home/pi/chessbox/src/MarkPopup.cpp
+ /home/pi/chessbox/src/MarkPopup.h
 CMakeFiles/controller_gui.dir/src/MovesPanel.cpp.o
  /home/pi/chessbox/src/Component.h
  /home/pi/chessbox/src/MovesPanel.cpp
@@ -503,10 +518,12 @@ CMakeFiles/controller_gui.dir/src/main.cpp.o
  ../tiny-process-library/process.hpp
  /home/pi/chessbox/src/Board.h
  /home/pi/chessbox/src/Button.h
+ /home/pi/chessbox/src/ClockPopup.h
  /home/pi/chessbox/src/Component.h
  /home/pi/chessbox/src/Connector.h
  /home/pi/chessbox/src/ControllerGUI.h
  /home/pi/chessbox/src/DepthPopup.h
+ /home/pi/chessbox/src/FilePickerPopup.h
  /home/pi/chessbox/src/ImageButton.h
  /home/pi/chessbox/src/LevelPopup.h
  /home/pi/chessbox/src/MenuPopup.h

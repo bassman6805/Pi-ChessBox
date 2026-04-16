@@ -101,6 +101,7 @@ public:
     bool pendingEngineMove = false;  // true when waiting for white move confirmation
     int hintToLed = -1;   // LED index of hint to square
     bool pendingMateFlash = false;  // true when checkmate flash received but not yet confirmed
+    bool m_lastMismatch[64] = {};
     int checkFlashLed = -1;  // LED index of king in check (-1 = none)
     int flashState=0;
     int slowFlashCounter=0;
@@ -730,7 +731,7 @@ public:
             clearLeds();
             for (int i = 0; i < 64; i++) {
                 char p = rules.pieceAt(i);
-                if (p == 'k' || p == 'K') led(ledIndex(i), LED_SLOW_FLASH);
+                if (p == 'k' || p == 'K') led(ledIndex(i), LED_FLASH);
             }
         }
     }
@@ -986,7 +987,8 @@ public:
             int state = readState(i);
             if(squareState[i] != state) {
                 complete=false;
-                if (squareState[i] || state) printf("MISMATCH i=%d sq=%d state=%d\n", i, squareState[i], state);
+                if ((squareState[i] || state) && !m_lastMismatch[i]) printf("MISMATCH i=%d sq=%d state=%d\n", i, squareState[i], state);
+                m_lastMismatch[i] = (squareState[i] != state);
                 if (!pendingMateFlash) {
                     if(state && !squareState[i])
                         led(i,LED_FLASH);

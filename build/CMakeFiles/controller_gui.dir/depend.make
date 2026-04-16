@@ -122,6 +122,10 @@ CMakeFiles/controller_gui.dir/src/Button.cpp.o: /usr/local/include/SDL2/SDL_vide
 CMakeFiles/controller_gui.dir/src/Button.cpp.o: /usr/local/include/SDL2/begin_code.h
 CMakeFiles/controller_gui.dir/src/Button.cpp.o: /usr/local/include/SDL2/close_code.h
 
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o: ../src/ClockPopup.cpp
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o: ../src/ClockPopup.h
+CMakeFiles/controller_gui.dir/src/ClockPopup.cpp.o: ../src/Component.h
+
 CMakeFiles/controller_gui.dir/src/Component.cpp.o: ../src/Component.cpp
 CMakeFiles/controller_gui.dir/src/Component.cpp.o: ../src/Component.h
 
@@ -141,14 +145,17 @@ CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../common/thc.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../tiny-process-library/process.hpp
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/Board.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/Button.h
+CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/ClockPopup.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/Component.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/Connector.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/ControllerGUI.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/ControllerGUIjson.cpp
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/DepthPopup.h
+CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/FilePickerPopup.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/ImageButton.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/Label.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/LevelPopup.h
+CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/MarkPopup.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/MenuPopup.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/MovesPanel.h
 CMakeFiles/controller_gui.dir/src/ControllerGUIjson.cpp.o: ../src/PGNLoader.h
@@ -261,6 +268,10 @@ CMakeFiles/controller_gui.dir/src/Dialog.cpp.o: /usr/local/include/SDL2/SDL_vide
 CMakeFiles/controller_gui.dir/src/Dialog.cpp.o: /usr/local/include/SDL2/begin_code.h
 CMakeFiles/controller_gui.dir/src/Dialog.cpp.o: /usr/local/include/SDL2/close_code.h
 
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o: ../src/Component.h
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o: ../src/FilePickerPopup.cpp
+CMakeFiles/controller_gui.dir/src/FilePickerPopup.cpp.o: ../src/FilePickerPopup.h
+
 CMakeFiles/controller_gui.dir/src/FontManager.cpp.o: ../src/FontManager.cpp
 CMakeFiles/controller_gui.dir/src/FontManager.cpp.o: ../src/FontManager.h
 
@@ -318,6 +329,10 @@ CMakeFiles/controller_gui.dir/src/Label.cpp.o: /usr/local/include/SDL2/close_cod
 CMakeFiles/controller_gui.dir/src/LevelPopup.cpp.o: ../src/Component.h
 CMakeFiles/controller_gui.dir/src/LevelPopup.cpp.o: ../src/LevelPopup.cpp
 CMakeFiles/controller_gui.dir/src/LevelPopup.cpp.o: ../src/LevelPopup.h
+
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o: ../src/Component.h
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o: ../src/MarkPopup.cpp
+CMakeFiles/controller_gui.dir/src/MarkPopup.cpp.o: ../src/MarkPopup.h
 
 CMakeFiles/controller_gui.dir/src/MovesPanel.cpp.o: ../src/Component.h
 CMakeFiles/controller_gui.dir/src/MovesPanel.cpp.o: ../src/MovesPanel.cpp
@@ -502,10 +517,12 @@ CMakeFiles/controller_gui.dir/src/main.cpp.o: ../common/thc.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../tiny-process-library/process.hpp
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/Board.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/Button.h
+CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/ClockPopup.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/Component.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/Connector.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/ControllerGUI.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/DepthPopup.h
+CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/FilePickerPopup.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/ImageButton.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/LevelPopup.h
 CMakeFiles/controller_gui.dir/src/main.cpp.o: ../src/MenuPopup.h
