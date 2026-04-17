@@ -53,7 +53,7 @@ public:
 
         int cols = 4;
         int rows = ((int)m_items.size() + cols - 1) / cols;
-        int bw = 55, bh = 59, pad = 4;
+        int bw = 90, bh = 80, pad = 8;
         int gridW = cols * bw + (cols + 1) * pad;
         int gridH = rows * bh + (rows + 1) * pad;
         // Center the grid vertically, leave room for close button at bottom
