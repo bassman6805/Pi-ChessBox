@@ -720,6 +720,9 @@ public:
         switch(terminal) {
             case thc::TERMINAL::TERMINAL_BCHECKMATE: printf("black checkmate\n"); break;
             case thc::TERMINAL::TERMINAL_WCHECKMATE: printf("white checkmate\n"); break;
+            case thc::TERMINAL::TERMINAL_WSTALEMATE: printf("white stalemate\n"); break;
+            case thc::TERMINAL::TERMINAL_BSTALEMATE: printf("black stalemate\n"); break;
+            default: break;
         }
         if(terminal==thc::TERMINAL::TERMINAL_BCHECKMATE || terminal==thc::TERMINAL::TERMINAL_WCHECKMATE) {
             clearLeds();
@@ -733,6 +736,15 @@ public:
                     else if(rules.pieceAt(i) == 'K' && terminal == thc::TERMINAL::TERMINAL_WCHECKMATE)
                         led(ledIndex(i), LED_FLASH);
                 }
+            }
+        } else if(terminal==thc::TERMINAL::TERMINAL_WSTALEMATE || terminal==thc::TERMINAL::TERMINAL_BSTALEMATE) {
+            clearLeds();
+            checkFlashLed = -1;
+            hintToLed = -1;
+            gameMode = MODE_MATE;
+            for(int i=0; i<64; i++) {
+                if(rules.pieceAt(i) == 'k' || rules.pieceAt(i) == 'K')
+                    led(ledIndex(i), LED_FLASH);
             }
         }
     }
