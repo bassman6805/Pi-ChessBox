@@ -756,7 +756,9 @@ public:
         int pieceCount2 = 0;
         for (int pi2 = 0; pi2 < 64; pi2++) { char pc2 = rules.pieceAt(pi2); if (pc2 != ' ' && pc2 != '.') pieceCount2++; }
         bool isKvK2 = (pieceCount2 == 2);
-        if (drawType != thc::DRAWTYPE::NOT_DRAW && isKvK2) {
+        bool isDraw2 = (drawType != thc::DRAWTYPE::NOT_DRAW) &&
+                       (drawType != thc::DRAWTYPE::DRAWTYPE_INSUFFICIENT_AUTO || isKvK2);
+        if (isDraw2) {
             printf("DRAW detected: %d\n", (int)drawType);
             gameMode = MODE_MATE;
             clearLeds();
@@ -1039,7 +1041,9 @@ public:
                 int pieceCount = 0;
                 for (int pi = 0; pi < 64; pi++) { char pc = rules.pieceAt(pi); if (pc != ' ' && pc != '.') pieceCount++; }
                 bool isKvK = (pieceCount == 2);
-                        if (drawType != thc::DRAWTYPE::NOT_DRAW && isKvK) {
+                bool isDraw = (drawType != thc::DRAWTYPE::NOT_DRAW) &&
+                              (drawType != thc::DRAWTYPE::DRAWTYPE_INSUFFICIENT_AUTO || isKvK);
+                        if (isDraw) {
                     clearLeds();
                     for (int di = 0; di < 64; di++) {
                         char p = rules.pieceAt(di);
