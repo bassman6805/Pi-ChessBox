@@ -445,6 +445,8 @@ public:
                 hintToLed = -1;
                 checkFlashLed = -1;
                 pendingMateFlash = false;
+                pendingEngineMove = false;
+                moveIndex = 0;
                 jresult["message"] = "game mode set to MODE_PLAY";
                 clearLeds();
             } else if(!mode.compare("setup")) {
@@ -457,6 +459,8 @@ public:
                 hintToLed = -1;
                 checkFlashLed = -1;
                 pendingMateFlash = false;
+                pendingEngineMove = false;
+                moveIndex = 0;
                 jresult["message"] = "game mode set to MODE_PLAY (black side)";
                 clearLeds();
             } else if(!mode.compare("inspect")) {
