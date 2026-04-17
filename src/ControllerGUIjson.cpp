@@ -205,9 +205,31 @@ void ControllerGUI::update(long ticks) {
         if (m_whiteTicking) {
             m_whiteTimeMs -= ticks;
             if (m_whiteTimeMs < 0) m_whiteTimeMs = 0;
+            if (m_whiteTimeMs == 0 && !m_gameOver) {
+                m_gameOver = true;
+                m_clockRunning = false;
+                std::string kSq;
+                { const char* fen=m_board->getFen(); thc::ChessRules cr; cr.Forsyth(fen); for(int i=0;i<64;i++){if(cr.squares[i]=='K'){char f='a'+(i%8);char r='8'-(i/8);kSq=std::string({f,r});break;}} }
+                if (!kSq.empty()) {
+                    m_board->setHighlight(kSq.c_str(), true);
+                    simSend(nlohmann::json{{"action","flash"},{"on",true},{"timeout",true},{"squares",nlohmann::json::array({kSq})}});
+                }
+                fprintf(stderr, "WHITE FLAG!\n");
+            }
         } else {
             m_blackTimeMs -= ticks;
             if (m_blackTimeMs < 0) m_blackTimeMs = 0;
+            if (m_blackTimeMs == 0 && !m_gameOver) {
+                m_gameOver = true;
+                m_clockRunning = false;
+                std::string kSq;
+                { const char* fen=m_board->getFen(); thc::ChessRules cr; cr.Forsyth(fen); for(int i=0;i<64;i++){if(cr.squares[i]=='k'){char f='a'+(i%8);char r='8'-(i/8);kSq=std::string({f,r});break;}} }
+                if (!kSq.empty()) {
+                    m_board->setHighlight(kSq.c_str(), true);
+                    simSend(nlohmann::json{{"action","flash"},{"on",true},{"timeout",true},{"squares",nlohmann::json::array({kSq})}});
+                }
+                fprintf(stderr, "BLACK FLAG!\n");
+            }
         }
     }
 
@@ -273,6 +295,10 @@ void ControllerGUI::update(long ticks) {
                         fprintf(stderr, "BLACK CONFIRM: lan=%s flipped=%s pending=%s\n", lan.c_str(), flipped.c_str(), m_pendingEngineMove.c_str());
                         if (lan == flipped || lan == m_pendingEngineMove) {
                             fprintf(stderr, "ENGINE MOVE CONFIRMED (black mode): %s\n", m_pendingEngineMove.c_str());
+                            if (m_clockEnabled && m_clockRunning) {
+                                if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                                else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                            }
                             m_pendingEngineMove = "";
                             m_board->clearHighlights();
                             lockoutTimer = 0;
@@ -387,10 +413,6 @@ void ControllerGUI::update(long ticks) {
                     if (isCastleRookMove) {
                         fprintf(stderr, "CASTLE ROOK MOVE confirmed: %s\n", lan.c_str());
                         m_waitingForRook = false;
-    // Reset and start clock
-    clockReset();
-    m_clockRunning = true;
-    m_whiteTicking = true;
                         if (m_connector && m_connector->isConnected()) {
                             try {
                                 nlohmann::json jpos;
@@ -421,8 +443,8 @@ void ControllerGUI::update(long ticks) {
                         fprintf(stderr, "ENGINE MOVE CONFIRMED physically via HW move: %s\n", lan.c_str());
                         // Switch clock after engine move confirmed
                         if (m_clockEnabled && m_clockRunning) {
-                            m_whiteTimeMs += m_clockIncrement*1000;
-                            m_whiteTicking = false; // human (black) to move
+                            if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                            else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
                         }
                         m_pendingEngineMove = "";
                         m_board->clearHighlights();
@@ -595,6 +617,10 @@ void ControllerGUI::update(long ticks) {
                         std::string engineTo = m_pendingEngineMove.substr(2, 2);
                         if (lan == engineTo) {
                             fprintf(stderr, "ENGINE MOVE CONFIRMED (piece_up at dst): %s\n", m_pendingEngineMove.c_str());
+                            if (m_clockEnabled && m_clockRunning) {
+                                if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                                else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                            }
                             m_pendingEngineMove = "";
                             m_board->clearHighlights();
                             m_pendingMoveStart = "";
@@ -654,6 +680,10 @@ void ControllerGUI::update(long ticks) {
                             std::string engineTo   = m_pendingEngineMove.substr(2, 2);
                             if (m_pendingMoveStart == engineFrom && lan == engineTo) {
                                 fprintf(stderr, "ENGINE MOVE CONFIRMED physically: %s\n", m_pendingEngineMove.c_str());
+                                if (m_clockEnabled && m_clockRunning) {
+                                    if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                                    else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                                }
                                 m_pendingEngineMove = "";
                                 m_board->clearHighlights();
                             } else {
@@ -828,6 +858,11 @@ void ControllerGUI::update(long ticks) {
                     m_pendingMoveStart = "";
 
                 } else if (action == "ready") {
+                    // Switch clock back to human after engine move confirmed
+                    if (m_clockEnabled && m_clockRunning && !m_pendingEngineMove.empty()) {
+                        if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                        else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                    }
                     if (m_waitingForRook && m_engineMoveRequested && !m_gameOver) {
                         // Castle rook placed - fire engine
                         m_waitingForRook = false;
@@ -1112,7 +1147,18 @@ void ControllerGUI::newGame() {
         m_markFen = "";
         if (m_menuPopup) m_menuPopup->setButtonLabel("Return", "Mark");
     }
-    m_clockRunning = false;
+    if (m_clockEnabled) {
+        int presetMs = ClockPopup::presetTimeMs(m_clockPresetIndex);
+        m_whiteTimeMs = presetMs;
+        m_blackTimeMs = presetMs;
+        m_clockIncrement = ClockPopup::presetIncrementSec(m_clockPresetIndex);
+        m_clockRunning = true;
+        m_whiteTicking = true;
+        fprintf(stderr, "CLOCK START: presetIndex=%d timeMs=%d running=%d\n", m_clockPresetIndex, presetMs, m_clockRunning?1:0);
+    } else {
+        m_clockRunning = false;
+        fprintf(stderr, "CLOCK DISABLED\n");
+    }
     // m_twoPlayer and m_humanIsBlack are set by the caller before newGame()
     if (m_movesPanel) m_movesPanel->clear();
     m_uciClient->sendUCINewGame();
@@ -1469,9 +1515,8 @@ Component* ControllerGUI::mouseEvent(SDL_Event* event) {
                     m_clockEnabled = true;
                     m_whiteTimeMs  = newTimeMs;
                     m_blackTimeMs  = newTimeMs;
-                    clockReset();
-                    m_whiteTimeMs  = newTimeMs;
-                    m_blackTimeMs  = newTimeMs;
+                    m_clockRunning = true;
+                    m_whiteTicking = true;
                 }
             }
         }
@@ -1701,14 +1746,16 @@ void ControllerGUI::drawClock(SDL_Renderer* renderer) {
     bool blackActive = m_clockRunning && !m_whiteTicking;
     bool whiteActive = m_clockRunning && m_whiteTicking;
 
+    bool blackWarn = m_blackTimeMs < 30000;
+    bool whiteWarn = m_whiteTimeMs < 30000;
     // Black clock (left)
-    SDL_SetRenderDrawColor(renderer, blackActive ? 0 : 15, blackActive ? 110 : 25, blackActive ? 175 : 40, 255);
+    SDL_SetRenderDrawColor(renderer, blackWarn ? 180 : (blackActive ? 0 : 15), blackWarn ? 20 : (blackActive ? 110 : 25), blackWarn ? 20 : (blackActive ? 175 : 40), 255);
     SDL_RenderFillRect(renderer, &blackBox);
     SDL_SetRenderDrawColor(renderer, blackActive ? 180 : 60, blackActive ? 230 : 90, blackActive ? 0 : 90, 255);
     SDL_RenderDrawRect(renderer, &blackBox);
 
     // White clock (right)
-    SDL_SetRenderDrawColor(renderer, whiteActive ? 0 : 15, whiteActive ? 110 : 25, whiteActive ? 175 : 40, 255);
+    SDL_SetRenderDrawColor(renderer, whiteWarn ? 180 : (whiteActive ? 0 : 15), whiteWarn ? 20 : (whiteActive ? 110 : 25), whiteWarn ? 20 : (whiteActive ? 175 : 40), 255);
     SDL_RenderFillRect(renderer, &whiteBox);
     SDL_SetRenderDrawColor(renderer, whiteActive ? 180 : 60, whiteActive ? 230 : 90, whiteActive ? 0 : 90, 255);
     SDL_RenderDrawRect(renderer, &whiteBox);
@@ -1727,7 +1774,7 @@ void ControllerGUI::drawClock(SDL_Renderer* renderer) {
     };
 
     SDL_Color white = {220, 235, 255, 255};
-    SDL_Color warn  = {255, 80,  80,  255};
+    SDL_Color warn  = {220, 235, 255, 255};
 
     drawText(blackBox, "B " + formatTime(m_blackTimeMs), m_blackTimeMs < 30000 ? warn : white);
     drawText(whiteBox, "W " + formatTime(m_whiteTimeMs), m_whiteTimeMs < 30000 ? warn : white);
