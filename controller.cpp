@@ -93,7 +93,8 @@ public:
         MODE_PLAY,          //normal mode, waiting for the player to make a move
         MODE_MOVE,          //board wants player to move certain pieces; a computer or remote player move.
         MODE_SETPOSITION,   //Board wants player to place pieces in a certain setup.
-        MODE_MATE};         //check mate detected, no other moves can be made
+        MODE_MATE,          //check mate detected, no other moves can be made
+        MODE_LEDTEST};      //LED test mode, cycles through all LEDs
 
     BoardRules rules;
     int gameMode;
@@ -101,6 +102,8 @@ public:
     bool pendingEngineMove = false;  // true when waiting for white move confirmation
     int hintToLed = -1;   // LED index of hint to square
     bool pendingMateFlash = false;  // true when checkmate flash received but not yet confirmed
+    int m_ledTestIndex = 0;
+    long m_ledTestTimer = 0;
     bool m_lastMismatch[64] = {};
     int checkFlashLed = -1;  // LED index of king in check (-1 = none)
     int flashState=0;
@@ -286,6 +289,20 @@ public:
             }
             return;
         }
+        bool isTimeout = j.contains("timeout") && j["timeout"].get<bool>();
+        if (isTimeout) {
+            gameMode = MODE_MATE;
+            clearLeds();
+            if (on && j.contains("squares") && j["squares"].is_array()) {
+                for (auto& sq : j["squares"]) {
+                    std::string square = sq.get<std::string>();
+                    int idx = toIndex(square.c_str());
+                    led(ledIndex(idx), LED_FLASH);
+                    printf("TIMEOUT FLASH square=%s\n", square.c_str());
+                }
+            }
+            return;
+        }
         if (gameMode == MODE_MATE) return;
         checkFlashLed = -1;
         clearLeds();
@@ -467,6 +484,12 @@ public:
                 gameMode = MODE_INSPECT;
                 jresult["message"] = "game mode set to MODE_INSPECT";
                 clearLeds();
+            } else if(!mode.compare("ledtest")) {
+                gameMode = MODE_LEDTEST;
+                m_ledTestIndex = 0;
+                m_ledTestTimer = 0;
+                clearLeds();
+                jresult["message"] = "game mode set to MODE_LEDTEST";
             } else {
                 jresult["message"] = "invalid mode";
                 jresult["success"] = false;
@@ -602,6 +625,7 @@ public:
             case MODE_PLAY: idlePlay(); break;
             case MODE_MOVE: idleMove(); break;
             case MODE_SETPOSITION: idleSetPosition(); break;
+            case MODE_LEDTEST: idleLedTest(now); break;
         }
         flasher();
     }
@@ -1013,6 +1037,23 @@ public:
     /** Any squares that need a piece, will be solid. Any square that has a piece that should not
      * will flash.
      */
+    void idleLedTest(unsigned32 now) {
+        // Use tick counter: FREQ=10ms, so 30 ticks = 300ms
+        m_ledTestTimer++;
+        if (m_ledTestTimer < 30) return;
+        m_ledTestTimer = 0;
+        if (m_ledTestIndex > 0) led(m_ledTestIndex - 1, LED_OFF);
+        if (m_ledTestIndex >= 64) {
+            clearLeds();
+            gameMode = MODE_PLAY;
+            printf("LED test complete\n");
+            return;
+        }
+        led(m_ledTestIndex, LED_ON);
+        printf("LED test: index=%d\n", m_ledTestIndex);
+        m_ledTestIndex++;
+    }
+
     void idleSetPosition() {
         //setup what it should look like
         bool complete=true;

@@ -48,7 +48,7 @@ public:
             levelLabel, backLabel, depthLabel, timeLabel,
             "Load",     "Export",  "Clock",    "Inspect",
             "Mark",     "W_P",    "B_P",      "WB_P",
-            "BB_P"
+            "BB_P",     "LEDTest"
         };
 
         int cols = 4;

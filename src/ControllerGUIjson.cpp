@@ -1453,6 +1453,17 @@ void ControllerGUI::processButtonClicked(Button* b) {
     if (b->id() == "B_P")  { m_humanIsBlack = true;  m_twoPlayer = false; newGame(); return; }
     if (b->id() == "WB_P") { m_humanIsBlack = false; m_twoPlayer = true;  newGame(); return; }
     if (b->id() == "BB_P") { m_humanIsBlack = true;  m_twoPlayer = true;  newGame(); return; }
+    if (b->id() == "LEDTest") {
+        if (m_connector && m_connector->isConnected()) {
+            try {
+                nlohmann::json j;
+                j["action"] = "setmode";
+                j["mode"] = "ledtest";
+                m_connector->send((j.dump() + "\r\n").c_str());
+            } catch (...) {}
+        }
+        return;
+    }
     if (b->id() == "Connect") {
         m_connector->connect(m_host.c_str(), m_port);
         // Tell cbcontroller to enter play mode so LEDs work
