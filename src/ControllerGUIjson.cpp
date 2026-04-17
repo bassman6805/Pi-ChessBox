@@ -1624,7 +1624,7 @@ void ControllerGUI::draw(SDL_Renderer* renderer) {
         m_menuPopup->draw(renderer);
     if (m_filePickerPopup && m_filePickerPopup->isVisible())
         m_filePickerPopup->draw(renderer);
-    if (m_clockEnabled && !(m_menuPopup && m_menuPopup->isVisible())) drawClock(renderer);
+    if (m_clockEnabled && !(m_menuPopup && m_menuPopup->isVisible()) && !(m_filePickerPopup && m_filePickerPopup->isVisible())) drawClock(renderer);
     if (m_clockPopup && m_clockPopup->isVisible()) m_clockPopup->draw(renderer);
     if (m_markPopup  && m_markPopup->isVisible())  m_markPopup->draw(renderer);
     if (m_levelPopup && m_levelPopup->isVisible())
