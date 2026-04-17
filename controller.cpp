@@ -395,15 +395,30 @@ public:
                 } else {
                     gameMode = MODE_SETPOSITION;
                 }
-            } else if (gameMode == MODE_SETPOSITION) {
-                printf("setPosition boardFlipped: ignoring non-start FEN during setup\n");
-                return;
             } else {
-                for (int i = 0; i < 64; i++) {
-                    squareState[i] = readState(i);
+                // Count pieces in new FEN
+                int fenPieces = 0;
+                for (int i = 0; i < 64; i++) { if (rules.pieceAt(i) != ' ') fenPieces++; }
+                if (fenPieces <= 6) {
+                    // PGN custom position - map chess squares to physical squares
+                    pendingEngineMove = false;
+                    for (int i = 0; i < 64; i++) {
+                        int chessI = (7-(i/8))*8+(7-(i%8));
+                        squareState[i] = (rules.pieceAt(chessI) == ' ' ? 0 : 1);
+                    }
+                    bool bs = isBoardSetup();
+                    printf("setPosition boardFlipped PGN custom: isBoardSetup=%d\n", bs?1:0);
+                    gameMode = bs ? MODE_PLAY : MODE_SETPOSITION;
+                } else if (gameMode == MODE_SETPOSITION) {
+                    printf("setPosition boardFlipped: ignoring non-start FEN during setup\n");
+                    return;
+                } else {
+                    for (int i = 0; i < 64; i++) {
+                        squareState[i] = readState(i);
+                    }
+                    printf("setPosition boardFlipped mid-game: synced from hardware\n");
+                    gameMode = MODE_PLAY;
                 }
-                printf("setPosition boardFlipped mid-game: synced from hardware\n");
-                gameMode = MODE_PLAY;
             }
         } else {
             for(int i=0; i<64; i++) {
@@ -648,7 +663,7 @@ public:
                 validMoves++;
             }
         }
-//        printf("number of valid moves %d\n",len);
+//        printf("number of valid moves %d\n",validMoves);
         return validMoves>0;
     }
 
