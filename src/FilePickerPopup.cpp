@@ -142,6 +142,32 @@ void FilePickerPopup::draw(SDL_Renderer* renderer) {
         }
     }
 
+    // Scroll buttons (only show if needed)
+    if ((int)m_files.size() > m_visibleRows) {
+        int sbY = m_popupY + 50 + m_padding + m_visibleRows * (m_btnH + m_padding);
+        int sbW = (m_popupW - 3*m_padding) / 2;
+        SDL_Rect upBtn   = {m_padding,              sbY, sbW, 40};
+        SDL_Rect downBtn = {m_padding*2 + sbW,       sbY, sbW, 40};
+        bool canUp   = m_scrollOffset > 0;
+        bool canDown = m_scrollOffset + m_visibleRows < (int)m_files.size();
+        SDL_SetRenderDrawColor(renderer, canUp   ? 0 : 15, canUp   ? 110 : 30, canUp   ? 175 : 50, 255);
+        SDL_RenderFillRect(renderer, &upBtn);
+        SDL_SetRenderDrawColor(renderer, canDown ? 0 : 15, canDown ? 110 : 30, canDown ? 175 : 50, 255);
+        SDL_RenderFillRect(renderer, &downBtn);
+        SDL_SetRenderDrawColor(renderer, 0, 110, 175, 255);
+        SDL_RenderDrawRect(renderer, &upBtn);
+        SDL_RenderDrawRect(renderer, &downBtn);
+        if (m_font) {
+            SDL_Color white = {220, 235, 255, 255};
+            auto drawLbl = [&](SDL_Rect& r, const char* lbl) {
+                SDL_Surface* s = TTF_RenderText_Blended(m_font, lbl, white);
+                if (s) { SDL_Texture* t = SDL_CreateTextureFromSurface(renderer, s); if (t) { SDL_Rect d={r.x+(r.w-s->w)/2,r.y+(r.h-s->h)/2,s->w,s->h}; SDL_RenderCopy(renderer,t,nullptr,&d); SDL_DestroyTexture(t); } SDL_FreeSurface(s); }
+            };
+            drawLbl(upBtn,   "^ Up");
+            drawLbl(downBtn, "Down v");
+        }
+    }
+
     // Load and Cancel buttons
     int btnRowY = m_popupH - 60;
     SDL_Rect loadBtn   = {m_padding,                         btnRowY, (m_popupW - 3*m_padding)/2, 50};
@@ -204,6 +230,22 @@ Component* FilePickerPopup::mouseEvent(SDL_Event* event) {
         m_closing = true;
         m_sliding = true;
         return this;
+    }
+
+    // Scroll buttons
+    if ((int)m_files.size() > m_visibleRows) {
+        int sbY = m_popupY + 50 + m_padding + m_visibleRows * (m_btnH + m_padding);
+        int sbW = (m_popupW - 3*m_padding) / 2;
+        SDL_Rect upBtn   = {m_padding,         sbY, sbW, 40};
+        SDL_Rect downBtn = {m_padding*2 + sbW,  sbY, sbW, 40};
+        if (mx >= upBtn.x && mx < upBtn.x+upBtn.w && my >= upBtn.y && my < upBtn.y+upBtn.h) {
+            if (m_scrollOffset > 0) m_scrollOffset--;
+            return this;
+        }
+        if (mx >= downBtn.x && mx < downBtn.x+downBtn.w && my >= downBtn.y && my < downBtn.y+downBtn.h) {
+            if (m_scrollOffset + m_visibleRows < (int)m_files.size()) m_scrollOffset++;
+            return this;
+        }
     }
 
     // File items — tap to highlight
