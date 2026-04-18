@@ -296,8 +296,8 @@ void ControllerGUI::update(long ticks) {
                         if (lan == flipped || lan == m_pendingEngineMove) {
                             fprintf(stderr, "ENGINE MOVE CONFIRMED (black mode): %s\n", m_pendingEngineMove.c_str());
                             if (m_clockEnabled && m_clockRunning) {
-                                if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
-                                else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                                if (m_humanIsBlack) { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = false; }
+                                else { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
                             }
                             m_pendingEngineMove = "";
                             m_board->clearHighlights();
@@ -443,8 +443,8 @@ void ControllerGUI::update(long ticks) {
                         fprintf(stderr, "ENGINE MOVE CONFIRMED physically via HW move: %s\n", lan.c_str());
                         // Switch clock after engine move confirmed
                         if (m_clockEnabled && m_clockRunning) {
-                            if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
-                            else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                            if (m_humanIsBlack) { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = false; }
+                            else { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
                         }
                         m_pendingEngineMove = "";
                         m_board->clearHighlights();
@@ -518,6 +518,7 @@ void ControllerGUI::update(long ticks) {
                         m_lastHumanMove = lan;
                         // Switch clock after human move
                         if (m_clockEnabled && m_clockRunning) {
+                            fprintf(stderr, "CLOCK HUMAN MOVE: whiteTicking=%d humanIsBlack=%d\n", m_whiteTicking?1:0, m_humanIsBlack?1:0);
                             if (m_whiteTicking) { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = false; }
                             else                { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
                         }
@@ -618,8 +619,8 @@ void ControllerGUI::update(long ticks) {
                         if (lan == engineTo) {
                             fprintf(stderr, "ENGINE MOVE CONFIRMED (piece_up at dst): %s\n", m_pendingEngineMove.c_str());
                             if (m_clockEnabled && m_clockRunning) {
-                                if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
-                                else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                                if (m_humanIsBlack) { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = false; }
+                                else { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
                             }
                             m_pendingEngineMove = "";
                             m_board->clearHighlights();
@@ -860,8 +861,8 @@ void ControllerGUI::update(long ticks) {
                 } else if (action == "ready") {
                     // Switch clock back to human after engine move confirmed
                     if (m_clockEnabled && m_clockRunning && !m_pendingEngineMove.empty()) {
-                        if (m_humanIsBlack) { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
-                        else { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
+                        if (m_humanIsBlack) { m_whiteTimeMs += m_clockIncrement*1000; m_whiteTicking = false; }
+                        else { m_blackTimeMs += m_clockIncrement*1000; m_whiteTicking = true; }
                     }
                     if (m_waitingForRook && m_engineMoveRequested && !m_gameOver) {
                         // Castle rook placed - fire engine
