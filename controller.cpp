@@ -94,7 +94,8 @@ public:
         MODE_MOVE,          //board wants player to move certain pieces; a computer or remote player move.
         MODE_SETPOSITION,   //Board wants player to place pieces in a certain setup.
         MODE_MATE,          //check mate detected, no other moves can be made
-        MODE_LEDTEST};      //LED test mode, cycles through all LEDs
+        MODE_LEDTEST,       //LED test mode, cycles through all LEDs
+        MODE_REEDTEST};     //Reed switch test mode, shows raw switch state
 
     BoardRules rules;
     int gameMode;
@@ -490,6 +491,10 @@ public:
                 m_ledTestTimer = 0;
                 clearLeds();
                 jresult["message"] = "game mode set to MODE_LEDTEST";
+            } else if(!mode.compare("reedtest")) {
+                gameMode = MODE_REEDTEST;
+                clearLeds();
+                jresult["message"] = "game mode set to MODE_REEDTEST";
             } else {
                 jresult["message"] = "invalid mode";
                 jresult["success"] = false;
@@ -626,6 +631,7 @@ public:
             case MODE_MOVE: idleMove(); break;
             case MODE_SETPOSITION: idleSetPosition(); break;
             case MODE_LEDTEST: idleLedTest(now); break;
+            case MODE_REEDTEST: idleReedTest(); break;
         }
         flasher();
     }
@@ -1037,6 +1043,12 @@ public:
     /** Any squares that need a piece, will be solid. Any square that has a piece that should not
      * will flash.
      */
+    void idleReedTest() {
+        for (int i = 0; i < 64; i++) {
+            led(i, readState(i) ? LED_ON : LED_OFF);
+        }
+    }
+
     void idleLedTest(unsigned32 now) {
         // Use tick counter: FREQ=10ms, so 30 ticks = 300ms
         m_ledTestTimer++;

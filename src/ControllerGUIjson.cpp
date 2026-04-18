@@ -1464,6 +1464,17 @@ void ControllerGUI::processButtonClicked(Button* b) {
         }
         return;
     }
+    if (b->id() == "ReedTest") {
+        if (m_connector && m_connector->isConnected()) {
+            try {
+                nlohmann::json j;
+                j["action"] = "setmode";
+                j["mode"] = "reedtest";
+                m_connector->send((j.dump() + "\r\n").c_str());
+            } catch (...) {}
+        }
+        return;
+    }
     if (b->id() == "Connect") {
         m_connector->connect(m_host.c_str(), m_port);
         // Tell cbcontroller to enter play mode so LEDs work
