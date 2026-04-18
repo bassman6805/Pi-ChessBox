@@ -192,7 +192,7 @@ public:
         {
             //One way to handle the message. Process and reply within the switch.
             case PacketBuffer::pcNewConnection:   onConnection(pmsg);               break;
-            case PacketBuffer::pcClosed:          printf("Connection closed.\n");   break;
+            case PacketBuffer::pcClosed:          printf("Connection closed.\n"); killServer(); break;
             case TelnetServerSocket::pcFullLine:  onFullLine(pmsg);                 break;
         }
         DELETE_NULL(ppacket);   //IMPORTANT! The packet is no longer needed. You must delete it.

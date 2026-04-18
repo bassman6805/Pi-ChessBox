@@ -1476,6 +1476,10 @@ void ControllerGUI::processButtonClicked(Button* b) {
         }
         return;
     }
+    if (b->id() == "Exit") {
+        m_running = false;
+        return;
+    }
     if (b->id() == "Connect") {
         m_connector->connect(m_host.c_str(), m_port);
         // Tell cbcontroller to enter play mode so LEDs work
