@@ -646,18 +646,6 @@ string
 SDL2/SDL_ttf.h
 -
 
-/home/pi/chessbox/src/PGNLoader.cpp
-PGNLoader.h
-/home/pi/chessbox/src/PGNLoader.h
-fstream
--
-sstream
--
-cstdio
--
-cctype
--
-
 /home/pi/chessbox/src/PGNLoader.h
 string
 -
