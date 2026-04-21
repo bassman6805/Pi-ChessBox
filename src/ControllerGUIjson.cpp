@@ -252,6 +252,7 @@ void ControllerGUI::update(long ticks) {
     // Skip while piece is in hand so sim LEDs showing legal moves aren't overwritten
     if (m_syncTimer > 400 && m_pendingMoveStart.empty()) {
         m_syncTimer = 0;
+    m_autoConnectTimer = 1500;  // auto-connect after 1.5 seconds
         if (m_connector && m_connector->isConnected() && m_board) {
             try {
             if (m_gameOver) {
@@ -1143,6 +1144,7 @@ void ControllerGUI::newGame() {
     m_hintJustFired = false;
     m_waitingForRook = false;
     m_syncTimer = 0;
+    m_autoConnectTimer = 1500;  // auto-connect after 1.5 seconds
     // Clear mark state
     if (!m_markFen.empty()) {
         m_markFen = "";
@@ -1477,8 +1479,11 @@ void ControllerGUI::processButtonClicked(Button* b) {
         return;
     }
     if (b->id() == "Exit") {
+        fprintf(stderr, "EXIT button pressed\n");
+        if (m_connector) m_connector->close();
         m_running = false;
-        return;
+        SDL_Quit();
+        exit(0);
     }
     if (b->id() == "Connect") {
         m_connector->connect(m_host.c_str(), m_port);
@@ -1728,7 +1733,23 @@ void ControllerGUI::startGame() {
             }
         }
         uint32_t currentTicks = SDL_GetTicks();
-        this->update(currentTicks - lastTicks);
+        uint32_t ticks = currentTicks - lastTicks;
+        // Auto-connect to controller if not connected
+        if (!m_connector->isConnected() && m_autoConnectTimer > 0) {
+            m_autoConnectTimer -= ticks;
+            if (m_autoConnectTimer <= 0) {
+                fprintf(stderr, "AUTO-CONNECT: attempting connection to %s:%d\n", m_host.c_str(), m_port);
+                m_connector->connect(m_host.c_str(), m_port);
+                if (m_connector->isConnected()) {
+                    m_autoConnectTimer = 0;
+                    fprintf(stderr, "AUTO-CONNECT: connected, starting game\n");
+                    newGame();
+                } else {
+                    m_autoConnectTimer = 2000;  // retry in 2 seconds
+                }
+            }
+        }
+        this->update(ticks);
         lastTicks = currentTicks;
         if (m_renderer) {
             this->draw(m_renderer);

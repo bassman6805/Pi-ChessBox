@@ -73,6 +73,7 @@ private:
     bool m_humanIsBlack = false;
     bool m_twoPlayer = false;       // true = two humans, no engine
     long m_syncTimer = 0;
+    long m_autoConnectTimer = 1500;
     long m_engineStartDelay = 0;
 
     bool isEngineToMove() const {
