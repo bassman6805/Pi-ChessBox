@@ -1,4 +1,0 @@
-/home/pi/chessbox/build/CMakeFiles/rebuild_cache.dir
-/home/pi/chessbox/build/CMakeFiles/edit_cache.dir
-/home/pi/chessbox/build/CMakeFiles/controller_gui.dir
-/home/pi/chessbox/build/CMakeFiles/sim.dir

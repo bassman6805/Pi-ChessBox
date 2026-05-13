@@ -1,6 +1,19 @@
+# Build artifacts
+build/
+*.o
+*.a
 *.bak
+
+# Compiled binaries
+cbcontroller
+cbcontroller_new
+cbcontroller_backup
+cbgui
+controller_gui
+sim
+
+# Game files (user generated)
 games/
-build/CMakeFiles/
-build/CMakeCache.txt
-build/cmake_install.cmake
-build/Makefile
+
+# Misc
+_M_impl._M_start,
